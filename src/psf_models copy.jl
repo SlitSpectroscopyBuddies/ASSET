@@ -43,6 +43,9 @@ end
 
 chromPSF(α::T) where {T} = chromPSF(α, (0,0))
 
+parameters(P::chromPSF) = [P.α]
+get_param_bnds(P::chromPSF) = [P.α_bnds]
+
 function (P::chromPSF)(ρ::T,λ::T) where {T<:AbstractFloat}
 
     σ² = P.α*λ*λ
@@ -93,6 +96,9 @@ function chromwmwPSF(p::AbstractVector{T},
     
     return chromwmwPSF(p[1], b[1], p[2], b[2])
 end
+
+parameters(P::chromwmwPSF) = [P.α, P.β]
+get_param_bnds(P::chromwmwPSF) = [P.α_bnds, P.β_bnds]
 
 function (P::chromwmwPSF)(ρ::T,λ::T) where {T<:AbstractFloat}
 
