@@ -5,6 +5,9 @@ version = "0.1.0"
 
 [deps]
 InterpolationKernels = "16730964-a2ec-11e9-36fa-47a4f82bfac6"
+InverseProblem = "64b5b672-16b6-410f-923c-75370071a2c8"
 LazyAlgebra = "aeaa251e-9d76-11e9-311b-83636bf44738"
 LinearInterpolators = "2fc109c4-9d77-11e9-32ff-e5c650334c16"
+OptimPackNextGen = "080ffe24-4a27-4ab0-ad71-7b624e73ef8d"
 PointSpreadFunctions = "59a21e54-00bc-4653-8d10-290de9306ebc"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
