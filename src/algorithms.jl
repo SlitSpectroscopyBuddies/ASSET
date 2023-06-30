@@ -43,15 +43,15 @@ function extract_spectrum!(z::AbstractVector{T},
     kwds...) where {T,N}
     
     @assert axes(d) == axes(w) == axes(ρ_map) == axes(λ_map)
-    @assert axes(d) == LinearInterpolators.output_size(F)
+    @assert size(d) == LinearInterpolators.output_size(F)
     
     # Initialization
     iter = 0
-    loss_last = loss(d, w, H, F, s, Reg, Bkg)
+    H = similar(d)
+    loss_last = loss(d, w, H, F, z, Reg, Bkg)
     z_last = copy(z)
     res = copy(d)
     ρ_map_centered = ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
-    H = similar(d)
     while true
         if fit_bkg! != undef #FIXME: if Bkg != undef
             # Mask object
@@ -397,7 +397,7 @@ function loss(d::AbstractArray{T,N},
     if Bkg != undef
         @. wks -= H .* (F*z) + Bkg
     else
-        @. wks -= H .* (F*z)
+         wks .-= H .* (F*z)
     end
     lkl = vdot(wks, w .* wks)
 
