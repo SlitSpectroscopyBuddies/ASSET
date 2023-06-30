@@ -20,7 +20,7 @@ FIXME: fit_bkg! must take in arg `AbstractBkg`, `AbstractArray{T,N}`,
 `AbstractArray{T,N}`.
 
 #FIXME: size(psf_center) = (1, 1, size(ρ_map,3))
-
+#FIXME: keywords for psf_parameters bound
 
 """
 function extract_spectrum!(z::AbstractVector{T},
@@ -34,7 +34,7 @@ function extract_spectrum!(z::AbstractVector{T},
     Reg::Regularization,
     Bkg::Union{AbstractBkg,UndefInitializer} = undef,
     Reg_bkg::Union{Regul,UndefInitializer} = undef,
-    fit_bkg!::Union{Function,UndefInitializer} = undef;
+    fit_bkg!::Union{Function,UndefInitializer} = undef; #FIXME: not as an argument
     auto_calib::Val = Val(true),
     mask_width::Real = 3.0,
     max_iter::Int = 1000,
@@ -53,17 +53,17 @@ function extract_spectrum!(z::AbstractVector{T},
     ρ_map_centered = ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
     H = similar(d)
     while true
-        if fit_bkg! != undef
+        if fit_bkg! != undef #FIXME: if Bkg != undef
             # Mask object
             mask_z = mask_object(d, ρ_map_centered, λ_map; mask_width=mask_width)
             # Estimate background
             bkg_step!(Bkg, fit_bkg!, res, w, Reg_bkg, ρ_map, λ_map, mask_z; 
-                      hide_object=(iter == 0))
+                      hide_object=(iter == 0)) #FIXME: fit_bkg! should not be an argument
             copyto!(res, d - Bkg)
         end
         # Estimate object's spectrum
         object_step!(z, psf, psf_center, F, res, w, Reg, ρ_map, λ_map; 
-                     auto_calib=auto_calib, kwds...)
+                     auto_calib=auto_calib, kwds...) #FIXME: keywords for psf_parameters bound
         copyto!(ρ_map_centered, ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
         psf_map!(H, psf, ρ_map_centered, λ_map)
         # Stop criterions
@@ -197,12 +197,29 @@ end
 
 #FIXME: psf_center is not an argument
 """
-function psf_map!()
-
+function psf_map!(map::AbstractArray{T,N},
+                 h::AbstractPSF,
+                 ρ::AbstractArray{T,N},
+                 λ::AbstractArray{T,N}) where {N, T<:AbstractFloat}
+    sz=size(map)
+    @assert sz == size(ρ)
+    @assert sz == size(λ)
+    
+    @inbounds for i in eachinde(map, ρ, λ)
+        map[i] = h(ρ[i], λ[i])
+    end
 end
-
-
-
+      
+function psf_map(h::AbstractPSF,
+                 ρ::AbstractArray{T,N},
+                 λ::AbstractArray{T,N}) where {N, T<:AbstractFloat}
+    sz=size(ρ)
+    @assert sz == size(λ)
+ 
+    map = zeros(sz)    
+    psf_map!(map, h, ρ, λ)
+    return map
+end    
 
 """
 
