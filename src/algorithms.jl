@@ -63,7 +63,7 @@ function extract_spectrum!(z::AbstractVector{T},
         end
         # Estimate object's spectrum
         object_step!(z, psf, psf_center, F, res, w, Reg, ρ_map, λ_map; 
-                     auto_calib=auto_calib, kwds...) #FIXME: keywords for psf_parameters bound
+                     auto_calib=auto_calib, kwds...) 
         copyto!(ρ_map_centered, ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
         psf_map!(H, psf, ρ_map_centered, λ_map)
         # Stop criterions
@@ -142,7 +142,7 @@ end
 """
 function object_step!(z::AbstractVector{T},
     psf::AbstractPSF,
-    psf_center::AbstractArray{T},
+    psf_center::AbstractVector{T},
     F::SparseInterpolator{T},
     d::AbstractArray{T,N},
     w::AbstractArray{T,N},
@@ -150,8 +150,8 @@ function object_step!(z::AbstractVector{T},
     ρ_map::AbstractArray{T,N},
     λ_map::AbstractArray{T,N};
     auto_calib::Val = Val(true),
-    psf_params_bnds::AbstractVector{Tuple{T}} = [(0,0) for i in 1:length(psf[:])],
-    psf_center_bnds::AbstractVector{Tuple{T}} = [(0,0) for i in 1:length(psf_center)],
+    psf_params_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf[:])],
+    psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
     max_iter::Int = 1000,
     loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
     z_tol::Tuple{Real,Real} = (0.0, 1e-6),
@@ -161,10 +161,10 @@ function object_step!(z::AbstractVector{T},
     
     # Initialization
     iter = 0
+    H = similar(d)
     loss_last = loss(d, w, H, F, z, Reg)
     z_last = copy(z)
     ρ_map_centered = ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
-    H = similar(d)
     psf_map!(H, psf, ρ_map_centered, λ_map)
     while true
         # Extract spectrum
@@ -201,11 +201,9 @@ function psf_map!(map::AbstractArray{T,N},
                  h::AbstractPSF,
                  ρ::AbstractArray{T,N},
                  λ::AbstractArray{T,N}) where {N, T<:AbstractFloat}
-    sz=size(map)
-    @assert sz == size(ρ)
-    @assert sz == size(λ)
-    
-    @inbounds for i in eachinde(map, ρ, λ)
+    @assert axes(map) == axes(ρ) == axes(λ)
+
+    @inbounds for i in eachindex(map, ρ, λ)
         map[i] = h(ρ[i], λ[i])
     end
 end
@@ -213,9 +211,7 @@ end
 function psf_map(h::AbstractPSF,
                  ρ::AbstractArray{T,N},
                  λ::AbstractArray{T,N}) where {N, T<:AbstractFloat}
-    sz=size(ρ)
-    @assert sz == size(λ)
- 
+    @assert axes(ρ) == axes(λ)
     map = zeros(sz)    
     psf_map!(map, h, ρ, λ)
     return map

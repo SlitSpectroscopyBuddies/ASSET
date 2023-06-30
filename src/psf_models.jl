@@ -161,7 +161,7 @@ which is:
 
         (1 + ρ²/σ²)^(-β)
 
-""" chromwmwGaussianPSF
+""" chromwmwMoffatPSF
 
 struct chromwmwMoffatPSF <: AbstractPSF{1}
     a::Float64
