@@ -21,7 +21,30 @@ Base.:-(m::AbstractArray{T,N}, B::BkgMdl{T,N}) where {T,N} = m - B.b
 
 regul(B::BkgMdl) = B.R(B.b)
 
-
+function fit_bkg!(B::BkgMdl, 
+                  D::CalibratedData; 
+                  nonnegative = true,
+                  kwds...)
+    function fg_solve!(x, g) where {T <: AbstractFloat}
+        fill!(g,0.0);
+        if μ>0
+            f += R(x,g)
+        end
+        r = (x .+ M - d)
+        wr = w .*r
+        vupdate!(g, 1, sum(wr, dims=3)[:,:])
+        f =  vdot(r,wr)/2
+        return f 
+    end
+    
+    if nonnegative
+        vmlmb!(fg_solve!, B.b; lower=T(0), kwds...)
+    else
+        vmlmb!(fg_solve!, B.b; kwds...)
+    end
+    
+    return B.b
+end
 
 
 """
