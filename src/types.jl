@@ -5,34 +5,37 @@
 """
 abstract type AbstractBkg end
 
-regul(B::AbstractBkg) = B.R
 
 
 
 """
 
 #FIXME: overload regul(bkg)
-#FIXME: needs to work for multiple regul at a time
+"""
+struct BkgMdl{T,N} <: AbstractBkg where {T,N}
+    b::AbstractArray{T,N}
+    R::Regularization
+end
+
+Base.:-(m::AbstractArray{T,N}, B::BkgMdl{T,N}) where {T,N} = m - B.b
+
+regul(B::BkgMdl) = B.R(B.b)
+
+
+
 
 """
-struct ParametrizedBkgMdl <: AbstractBkg where {T}
+
+#FIXME: overload regul(bkg)
+
+"""
+struct ParametrizedBkgMdl{T} <: AbstractBkg where {T}
     θ::AbstractVector{T}
     f::Function
     R::Regularization
 end
 
-Base.:+(m::AbstractArray{T,M}, B::ParametrizedBkgMdl) = m + f(B.θ)
+Base.:-(m::AbstractArray{T,N}, B::ParametrizedBkgMdl{T}) where {T,N} = m - B.f(B.θ)
 
-
-
-"""
-
-#FIXME: overload regul(bkg)
-"""
-struct BkgMdl <: AbstractBkg where {T,N}
-    b::AbstractArray{T,N}
-    R::Regularization
-end
-
-
+regul(B::ParametrizedBkgMdl) = B.R(B.f(B.θ))
 
