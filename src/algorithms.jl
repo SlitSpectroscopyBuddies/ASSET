@@ -29,50 +29,53 @@ function extract_spectrum!(z::AbstractVector{T},
     psf::AbstractPSF,
     D::CalibratedData{T},
     Reg::Regularization,
-    Bkg::Union{AbstractBkg,UndefInitializer} = undef,
-    Reg_bkg::Union{Regul,UndefInitializer} = undef,
-    fit_bkg!::Union{Function,UndefInitializer} = undef; #FIXME: not as an argument
+    Bkg::Union{<:AbstractBkg,UndefInitializer} = undef;
+    #Reg_bkg::Union{Regul,UndefInitializer} = undef,
+    #fit_bkg!::Union{Function,UndefInitializer} = undef; #FIXME: not as an argument
     auto_calib::Val = Val(true),
     mask_width::Real = 3.0,
     max_iter::Int = 1000,
     loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
     z_tol::Tuple{Real,Real} = (0.0, 1e-6),
-    extract_kwds::K = ()) where {T,K<:NamedTuple}
+    extract_kwds::K = (verb=true,)) where {T,K<:NamedTuple}
     
-    @assert axes(d) == axes(w) == axes(ρ_map) == axes(λ_map)
-    @assert size(d) == LinearInterpolators.output_size(F)
+    #@assert axes(D.d) == axes(D.w) == axes(ρ_map) == axes(λ_map)
+    @assert size(D.d) == LinearInterpolators.output_size(F)
     
     # Initialization
     iter = 0
-    Res = CalibratedData(D.d, D.w, D.ρ_map, D.λ_map)
+    Res = CalibratedData(copy(D.d), copy(D.w), copy(D.ρ_map), copy(D.λ_map))#FIXME sempai
     mask_z = similar(Res.w)
     z_last = copy(z)
     H = similar(Res.d)
     ρ_map_centered = Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
+    psf_param = collect(psf[:])
     psf_map!(H, psf, ρ_map_centered, Res.λ_map)
     loss_last = loss(D, H, F, z, Reg, Bkg)
     while true
-        if fit_bkg! != undef #FIXME: if Bkg != undef
+        if Bkg != undef
             # Mask object
             if iter == 0
-                copyto!(mask_z, mask_object(D.d, ρ_map_centered, Res.λ_map; 
+                copyto!(mask_z, mask_object(ρ_map_centered, Res.λ_map, psf; 
                                             mask_width=mask_width))
+                res_bkg = CalibratedData(D.d, D.w.*mask_z, D.ρ_map, D.λ_map)                            
+                fit_bkg!(Bkg, res_bkg)                                            
             else
-                fill!(mask_z, T(1))
+                #fill!(mask_z, T(1))
+                fit_bkg!(Bkg, Res)
             end
             # Estimate background
-            #FIXME: fit_bkg!(Bkg, Res, mask_z)
-            bkg_step!(Bkg, fit_bkg!, Res, Reg_bkg, mask_z; 
-                      hide_object=(iter == 0)) #FIXME: fit_bkg! should not be an argument
+            #bkg_step!(Bkg, fit_bkg!, Res, Reg_bkg, mask_z; 
+            #          hide_object=(iter == 0)) #FIXME: fit_bkg! should not be an argument
             copyto!(Res.d, D.d - Bkg)
         end
         # Estimate object's spectrum
-        object_step!(z, psf, psf_center, F, Res, Reg; auto_calib=auto_calib, extract_kwds...)
+        psf = object_step!(z, psf, psf_center, F, Res, Reg; auto_calib=auto_calib, extract_kwds...)[2]
         copyto!(ρ_map_centered, Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
         psf_map!(H, psf, ρ_map_centered, Res.λ_map)
         # Stop criterions
-        loss = loss(D, H, F, z, Reg, Bkg)
-        if (iter >= max_iter) || test_tol(loss, loss_last, loss_tol) || 
+        loss_temp = loss(D, H, F, z, Reg, Bkg)
+        if (iter >= max_iter) || test_tol(loss_temp, loss_last, loss_tol) || 
                                  test_tol(z, z_last, z_tol)
             if auto_calib == Val(:delay)
                 auto_calib = Val(true)
@@ -82,11 +85,11 @@ function extract_spectrum!(z::AbstractVector{T},
         end
         copyto!(Res.d, D.d - H .* (F*z))
         iter += 1
-        loss_last = lost
+        loss_last = loss_temp
         copyto!(z_last, z)
     end
 
-    return z
+    return z, psf, psf_center
 end
 
 
@@ -94,6 +97,22 @@ end
 
 """
 """
+function mask_object(ρ_map::AbstractArray{T,N},#must be centered
+                     λ_map::AbstractArray{T,N},
+                     psf::AbstractPSF;
+                     mask_width::Union{T,AbstractVector{T}} = 3.0) where {T,N}
+    @assert axes(ρ_map) == axes(λ_map)
+    mask_z = ones(T, size(ρ_map))
+    for i in eachindex(ρ_map)
+        fwmh=getfwhm(psf, ρ_map[i], λ_map[i])
+        if psf(ρ_map[i], λ_map[i]) <= mask_width * fwmh
+            mask_z[i] = T(0)
+        end
+    end
+
+    return mask_z
+end
+#=
 function mask_object(d::AbstractArray{T,N},
     ρ_map::AbstractArray{T,N},
     λ_map::AbstractArray{T,N};
@@ -103,14 +122,14 @@ function mask_object(d::AbstractArray{T,N},
 
     mask_z = ones(T, size(d))
     for f in 1:size(d, 3)
-        loc_z = lambda_ref(λ_map[:,:,f]) ./ λ_map[:,:,f] .* abs.(ρ_map[:,:,f])
+        #loc_z = lambda_ref(λ_map[:,:,f]) ./ λ_map[:,:,f] .* abs.(ρ_map[:,:,f]) FIXME: fix me please <(éwè)>
         frame_mask = mask_z[:,:,f]
         frame_mask[loc_z .< mask_width] .= T(0)
     end
 
     return mask_z
 end
-
+=#
 
 
 
@@ -152,8 +171,8 @@ function object_step!(z::AbstractVector{T},
     max_iter::Int = 1000,
     loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
     z_tol::Tuple{Real,Real} = (0.0, 1e-6),
-    rho_params::Tuple{Real,Real} = (2.5e-1, 1e-5),
-    rho_center::Tuple{Real,Real} = (5e-1, 1e-5),
+    #rho_params::Tuple{Real,Real} = (2.5e-1, 1e-5),
+    #rho_center::Tuple{Real,Real} = (5e-1, 1e-5),
     kwds...) where {T,N}
     
     # Initialization
@@ -162,26 +181,30 @@ function object_step!(z::AbstractVector{T},
     H = similar(D.d)
     ρ_map_centered = D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
     psf_map!(H, psf, ρ_map_centered, D.λ_map)
+    
     loss_last = loss(D, H, F, z, Reg)
     while true
         # Extract spectrum
         fit_spectrum!(z, F, H, D, Reg; kwds...)
         # Stop criterions
-        (auto_calib == Val(true)) && (loss = loss(D, H, F, z, Reg))
+        (auto_calib == Val(true)) && (loss_temp = loss(D, H, F, z, Reg)) 
         if (auto_calib != Val(true)) || (iter >= max_iter) || 
-                                        test_tol(loss, loss_last, loss_tol) || 
+                                        test_tol(loss_temp, loss_last, loss_tol) || 
                                         test_tol(z, z_last, z_tol)
             break
         end
         # Auto-calibration step
         if auto_calib == Val(true)
-            fit_psf_params!(psf, psf_center, z, F, D; 
-                            psf_params_bnds=psf_params_bnds, rho_tol=rho_params)
+            psf = fit_psf_params(psf, psf_center, z, F, D; 
+                            psf_params_bnds=psf_params_bnds)#, rho_tol=rho_params)
             fit_psf_center!(psf_center, psf, z, F, D;
-                            psf_center_bnds=psf_center_bnds, rho_tol=rho_center)
+                            psf_center_bnds=psf_center_bnds)#, rho_tol=rho_center)
             copyto!(ρ_map_centered, D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
             psf_map!(H, psf, ρ_map_centered, D.λ_map)
         end
+        iter +=1
+        loss_last =  loss_temp
+        copyto!(z_last, z)
     end
 
     return z, psf, psf_center
@@ -298,17 +321,25 @@ end
 
 """
 """
-function fit_psf_params!(psf::AbstractPSF,
+function fit_psf_params(psf::AbstractPSF,
     psf_center::AbstractVector{T},
     z::AbstractVector{T},
     F::SparseInterpolator{T},
     D::CalibratedData{T};
-    psf_params_bnds::AbstractVector{Tuple{T}} = [(0,0) for i in 1:length(psf[:])],
-    rho_tol::Tuple{Real,Real} = (2.5e-1, 1e-5),
+    psf_params_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf[:])],
+    rho_tol::Union{UndefInitializer,Tuple{Real,Real}} = undef,
     kwds...) where {T,N}
     
     @assert length(psf[:]) == length(psf_params_bnds)
 
+
+    if rho_tol == undef
+        rhobeg=(psf_params_bnds[1][2] - psf_params_bnds[1][1])/2
+        for i = 2:length(psf_params_bnds)
+            rhobeg = min(rhobeg, (psf_params_bnds[i][2] - psf_params_bnds[i][1])/2)
+        end
+        rho_tol = (0.99*rhobeg, 1e-3*rhobeg)
+    end
     bnd_min = zeros(length(psf_params_bnds))
     bnd_max = zeros(length(psf_params_bnds))
     for p in eachindex(psf_params_bnds)
@@ -321,15 +352,16 @@ function fit_psf_params!(psf::AbstractPSF,
     ρ_map_centered = ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
     H_p = zeros(T, size(d))
     function likelihood!(p)
-        psf_p = psf(p)
-        psf_map!(H_p, psf, ρ_map_centered, λ_map)
+        psf_p = typeof(psf)(p)
+        psf_map!(H_p, psf_p, ρ_map_centered, λ_map)
         L = Lkl(Diag(H_p) * F, d, w)
-
         return L(z)
     end
 
-    return Bobyqa.minimize!(p -> likelihood!(p), psf[:], bnd_min, bnd_max, 
-                            rho_tol[1], rho_tol[2]; kwds...)[2]
+    psf_param = collect(psf[:]) #FIXME: les paramètres sont scalaires donc immutables !!                                    
+    Bobyqa.minimize!(p -> likelihood!(p), psf_param, bnd_min, bnd_max, 
+                            rho_tol[1], rho_tol[2]; kwds...)[2]  
+    return typeof(psf)(psf_param)
 end
 
 
@@ -338,12 +370,19 @@ function fit_psf_center!(psf_center::AbstractVector{T},
     z::AbstractVector{T},
     F::SparseInterpolator{T},
     D::CalibratedData{T};
-    psf_center_bnds::AbstractVector{Tuple{T}} = [(0,0) for i in 1:length(psf_center)],
-    rho_tol::Tuple{Real,Real} = (5e-1, 1e-5),
+    psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
+    rho_tol::Union{UndefInitializer,Tuple{Real,Real}} = undef,
     kwds...) where {T,N}
     
     @assert length(psf_center) == length(psf_center_bnds)
 
+    if rho_tol == undef
+        rhobeg=(psf_center_bnds[1][2] - psf_center_bnds[1][1])/2
+        for i = 2:length(psf_center_bnds)
+            rhobeg = min(rhobeg, (psf_center_bnds[i][2] - psf_center_bnds[i][1])/2)
+        end
+        rho_tol = (0.99*rhobeg, 1e-3*rhobeg)
+    end
     bnd_min = zeros(length(psf_center))
     bnd_max = zeros(length(psf_center))
     for p in eachindex(psf_center_bnds)
@@ -385,12 +424,11 @@ function loss(D::CalibratedData{T},
 
     # Computing Likelihood
     wks = vcopy(D.d)
+    wks -= H .* (F*z)
     if Bkg != undef
-        @. wks -= H .* (F*z) + Bkg
-    else
-        @. wks .-= H .* (F*z)
+        wks .-= Bkg.b
     end
-    lkl = vdot(wks, w .* wks)
+    lkl = vdot(wks, D.w .* wks)
 
     #Computing Regularization
     r = Reg(z)

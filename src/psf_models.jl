@@ -12,8 +12,6 @@
 #
 # This file is part of ASSET
 
-import PointSpreadFunctions:
-    parameters
 
 """
         h=chromGaussianPSF(a)
@@ -47,6 +45,12 @@ function (P::chromGaussianPSF)(ρ::T,λ::T) where {T<:AbstractFloat}
 end
 
 @inline parameters(P::chromGaussianPSF) = getfield(P, :a)
+
+function getfwhm(P::chromGaussianPSF, ρ::T,λ::T) where {T<:AbstractFloat}
+    σ² = P.a*λ*λ
+    return 2*sqrt(2*log(2)*σ²)
+end
+
 
 """
         h=chromwmwGaussianPSF(p)
@@ -88,6 +92,11 @@ function (P::chromwmwGaussianPSF)(ρ::T,λ::T) where {T<:AbstractFloat}
 end
 
 @inline parameters(P::chromwmwGaussianPSF) = (getfield(P, :a),getfield(P, :b))
+
+function getfwhm(P::chromwmwGaussianPSF, ρ::T,λ::T) where {T<:AbstractFloat}
+    σ² = P.a*λ*λ +  P.b
+    return 2*sqrt(2*log(2)*σ²)
+end
 
 
 """
@@ -132,6 +141,7 @@ end
 
 @inline parameters(P::chromMoffatPSF) = (getfield(P, :a),getfield(P, :β))
 
+#TODO: getfwhm 
 
 """
         h=chromwmwMoffatPSF(p)
@@ -181,3 +191,4 @@ end
                                             getfield(P, :β))
 
 
+#TODO: getfwhm 

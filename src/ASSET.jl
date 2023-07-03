@@ -17,7 +17,7 @@ export
     solve_analytic!,
     solve_vmlmb!
 
-import Base: +, show
+import Base: +,-, show, copy
 using InterpolationKernels
 using InverseProblem
 using LazyAlgebra
@@ -25,6 +25,8 @@ using LinearInterpolators
 using OptimPackNextGen
 import OptimPackNextGen.Powell.Bobyqa
 using PointSpreadFunctions
+import PointSpreadFunctions:
+    parameters, getfwhm
 using SparseArrays
 
 
