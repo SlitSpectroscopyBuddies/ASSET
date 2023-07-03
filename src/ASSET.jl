@@ -17,7 +17,7 @@ export
     solve_analytic!,
     solve_vmlmb!
 
-import Base: +
+import Base: +, show
 using InterpolationKernels
 using InverseProblem
 using LazyAlgebra

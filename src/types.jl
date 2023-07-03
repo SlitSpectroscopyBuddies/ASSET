@@ -1,4 +1,44 @@
 
+"""
+    CalibratedData(d, w, rho, lambda) -> D
+
+Yields a structure `D` containing the data `d` and their respective weights 
+`w`, the angular separation `rho` and wavelength `lambda` maps calibrating the
+detector.
+
+"""
+struct CalibratedData{T<:AbstractFloat,N,D<:AbstractArray{T,N},
+                         R<:AbstractMatrix{T},
+                         L<:AbstractMatrix{T}}
+    d::D
+    w::D
+    rho::R
+    lambda::L
+
+    function CalibratedData(d::D,
+                            w::D,
+                            rho::R,
+                            lambda::L) where {T<:Real,N,
+                                              D<:AbstractArray{T,N},
+                                              R<:AbstractMatrix{T},
+                                              L<:AbstractMatrix{T}}
+        @assert axes(d) == axes(w)
+        @assert (axes(d,1), axes(d,2)) == axes(rho) == axes(lambda)
+        
+        return new{T,N,D,R,L}(d, w, rho, lambda)
+    end
+end
+
+Base.show(io::IO, D::CalibratedData{T}) where {T} = begin
+    print(io,"CalibratedData{$T}:")
+    print(io,"\n - scientific data `d` : ",typeof(D.d))
+    print(io,"\n - weight of data `w` : ",typeof(D.w))
+    print(io,"\n - spatial map `rho` : ",typeof(D.rho))
+    print(io,"\n - spectral map `lambda` : ",typeof(D.lambda))
+end
+
+
+
 
 """
 
