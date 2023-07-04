@@ -232,7 +232,7 @@ function psf_map(h::AbstractPSF,
                  ρ::AbstractArray{T,N},
                  λ::AbstractArray{T,N}) where {N, T<:AbstractFloat}
     @assert axes(ρ) == axes(λ)
-    map = zeros(sz)    
+    map = similar(ρ)
     psf_map!(map, h, ρ, λ)
     return map
 end    

@@ -136,12 +136,16 @@ end
  
 function (P::chromMoffatPSF)(ρ::T,λ::T) where {T<:AbstractFloat}
     σ² = P.a*λ*λ
-    return (1 + ρ*ρ/σ²)^(-P.β)
+    return (P.β-1)/(pi*σ²) * (1 + ρ*ρ/σ²)^(-P.β)
 end
 
 @inline parameters(P::chromMoffatPSF) = (getfield(P, :a),getfield(P, :β))
 
-#TODO: getfwhm 
+function getfwhm(P::chromMoffatPSF, ρ::T,λ::T) where {T<:AbstractFloat}
+    σ² = P.a*λ*λ 
+    return 2*sqrt(σ²*(2^(1/P.β) -1))
+end
+
 
 """
         h=chromwmwMoffatPSF(p)
@@ -183,7 +187,7 @@ end
  
 function (P::chromwmwMoffatPSF)(ρ::T,λ::T) where {T<:AbstractFloat}
     σ² = P.a*λ*λ +P.b
-    return (1 + ρ*ρ/σ²)^(-P.β)
+    return (P.β-1)/(pi*σ²) * (1 + ρ*ρ/σ²)^(-P.β)
 end
 
 @inline parameters(P::chromwmwMoffatPSF) = (getfield(P, :a),
@@ -191,4 +195,9 @@ end
                                             getfield(P, :β))
 
 
-#TODO: getfwhm 
+function getfwhm(P::chromwmwMoffatPSF, ρ::T,λ::T) where {T<:AbstractFloat}
+    σ² = P.a*λ*λ +  P.b
+    return 2*sqrt(σ²*(2^(1/P.β) -1))
+end
+
+
