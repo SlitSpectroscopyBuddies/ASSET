@@ -6,10 +6,11 @@ Yields a structure `D` containing the data `d` and their respective weights
 `w`, the angular separation `ρ_map` and wavelength `λ_map` maps calibrating the
 detector.
 
+The `Base` methods `axes`, `size`, `eltype` and `show` have been overload to be
+used with such a structure.
+
 """
-struct CalibratedData{T<:AbstractFloat,N,D<:AbstractArray{T,N}}#,
-                         #R<:AbstractMatrix{T},
-                         #L<:AbstractMatrix{T}} TODO: keep the possibility to have only one map for ρ_map and/or λ_map for all the exposures. 
+struct CalibratedData{T<:AbstractFloat,N,D<:AbstractArray{T,N}}
     d::D
     w::D
     ρ_map::D
@@ -18,17 +19,17 @@ struct CalibratedData{T<:AbstractFloat,N,D<:AbstractArray{T,N}}#,
     function CalibratedData(d::D,
                             w::D,
                             ρ_map::D,
-                            λ_map::D) where {T<:Real,N,
-                                              D<:AbstractArray{T,N}}#,
-                                              #R<:AbstractMatrix{T},
-                                              #L<:AbstractMatrix{T}}
+                            λ_map::D) where {T<:Real,N,D<:AbstractArray{T,N}}
         @assert axes(d) == axes(w)== axes(ρ_map) == axes(λ_map)
-        #@assert (axes(d,1), axes(d,2)) 
         
         return new{T,N,D}(d, w, ρ_map, λ_map)
     end
 end
 
+Base.axes(D::CalibratedData) = axes(D.d)
+Base.size(D::CalibratedData) = size(D.d)
+Base.eltype(D::CalibratedData) = eltype(typeof(D))
+Base.eltype(::Type{<:CalibratedData{T}}) where {T} = T
 Base.show(io::IO, D::CalibratedData{T}) where {T} = begin
     print(io,"CalibratedData{$T}:")
     print(io,"\n - scientific data `d` : ",typeof(D.d))
@@ -41,6 +42,28 @@ end
 
 
 """
+    AbstractBkg
+
+Type that defines a background structure, when one want to both estimate the
+background sources of the data and extracting the spectrum of the object of
+interest.
+
+An instance `B` of `AbstractBkg` must contain the parameters necessary to form
+the background model as well as a regularization structure. The method `regul`
+must be overload to yield the result of the regularization function applied to
+the model, or to parameters of the model, of the background.
+
+To estimate the instance `B`, the method `fit_bkg!` must be overload, to be used
+as:
+```julia
+julia> fit_bkg!(B, D, kwds...)
+```
+with `D` an instance of `CalibratedData`.
+
+Each new structure of type `AbstractBkg` must overload the addition and
+subtraction `Base` operators. 
+
+FIXME: See the ideas.jl file
 
 """
 abstract type AbstractBkg end
@@ -49,8 +72,33 @@ abstract type AbstractBkg end
 
 
 """
+    BkgMdl(b, R)
 
-#FIXME: overload regul(bkg)
+yields a structure of type `AbstractBkg`, composed of an `AbstractArray` `b` and
+an associated regularization `R` of type `Regularization`.
+
+# Example
+```julia
+# create a BkgMdl structure
+julia> B = BkgMdl(b, R)
+# add the structure to an AbstractArray
+julia> A = ones(size(b))
+julia> A + B
+```
+To apply the regularization to the background array:
+```julia
+julia> regul(B)
+```
+To fit the background to some `CalibratedData` `D`:
+```julia
+julia> fit_bkg!(B, D, true, kwds...)
+```
+where `kwds` specifies all the keywords used by the optimization method to
+estimate the background.
+
+See also [`AbstractBkg`](@ref)
+
+FIXME: See the ideas.jl file
 """
 struct BkgMdl{T,N} <: AbstractBkg where {T,N}
     b::AbstractArray{T,N}
@@ -59,8 +107,6 @@ end
 
 Base.:+(m::AbstractArray{T,N}, B::BkgMdl{T,M}) where {T,N,M} = m .+ B.b
 Base.:-(m::AbstractArray{T,N}, B::BkgMdl{T,M}) where {T,N,M} = m .- B.b
-
-
 
 regul(B::BkgMdl) = B.R(B.b)
 
@@ -89,20 +135,4 @@ function fit_bkg!(B::BkgMdl{T},
     
     return B.b
 end
-
-
-"""
-
-#FIXME: overload regul(bkg)
-
-"""
-struct ParametrizedBkgMdl{T} <: AbstractBkg where {T}
-    θ::AbstractVector{T}
-    f::Function
-    R::Regularization
-end
-
-Base.:-(m::AbstractArray{T,N}, B::ParametrizedBkgMdl{T}) where {T,N} = m - B.f(B.θ)
-
-regul(B::ParametrizedBkgMdl) = B.R(B.f(B.θ))
 

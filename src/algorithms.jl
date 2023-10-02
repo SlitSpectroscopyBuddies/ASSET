@@ -1,27 +1,60 @@
 
 
 """
-    extract_spectrum!()
+    extract_spectrum!(z, F, psf_center, psf, D, Reg [, Bkg]; kwds...)
 
-used to estimate the spectrum of an object observed with long-slit spectroscopy,
-when the data is corrupted by a background component and noise. The direct model
+estimates the spectrum of an object observed with long-slit spectroscopy,
+when the data can be corrupted by a background component and noise. The direct model
 of such data can be writen:
 `
-                    d = Bkg + H*(F.z) + n
+                    d = Bkg + Diag(H)*F*z + n
 `
-where `*` denotes the element-wise multiplication and `.` the matrix product.
-`z` is the spectrum of the object of interest and `F` its associated
-interpolation operator, `H` the operator modeling the Point Spread Function of
-the instrument, while `Bkg` is the background component to disentangle from the
-object of interest and `n` accounts for noises.
+where `*` the matrix product. `z` is the spectrum of the object of interest and
+`F` its associated interpolation operator, `H` the operator modeling the Point
+Spread Function (PSF) of the instrument, while `Bkg` is the background component
+to disentangle from the object of interest and `n` accounts for noises.
 
-FIXME: fit_bkg! must take in arg `AbstractBkg`, `AbstractArray{T,N}`,
-`AbstractArray{T,N}`, `Regularization`, `AbstractArray{T,N}`,
-`AbstractArray{T,N}`.
+The data and there associated weights are given by the `CalibratedData`
+structure `D`, while the array `H` is produced using the method `psf_map` with
+the arguments `psf` and `psf_center`.
 
-#FIXME: size(psf_center) = (1, 1, size(ρ_map,3))
-#FIXME: keywords for psf_parameters bound
+The estimation of the different unknowns relies on the minimization of the a
+posteriori likelihood, where `Reg` is the regularization function of `z` (of
+type `InverseProblem.Regularization`) and where `Bkg` is a structure of type
+`AbstractBkg`, which contains a way to produce the background component and its
+regularization function. If `Bkg` is not given, the algorithm will suppose that
+there is no background in the data and will only call `object_step!`. If there
+is a `Bkg` given, the algorithm will alternate the estimation of the background
+using `fit_bkg!` with the extraction of the spectrum (done in `object_step!`).
 
+Finally, an auto-calibration step can be activated which will refine the
+parameters and center of the PSF.
+
+# Keywords
+ - `auto_calib` : (`Val(true)` by default) precise if an auto-calibration step
+   of the PSF must be done after extracting the spectrum. It can also take the
+   value `Val(:delay)` which will run the algorithm without auto_calib until it
+   converges, before activating the `auto_calib` and re-running the algorithm.
+ - `mask_width` : (`3` by default) defines the number of fwhm of the psf will be
+   used to hide the object on the first iteration of the background estimtion
+   (if thee is one).
+ - `max_iter` : (`1000` by default) defines the maximum number of iterations
+   that can do the method (useful when `auto_calib=true`).
+ - `loss_tol` : (`(0,1e-6)` by default) defines the absolute and relative
+   tolerance between two consecutive iteration of the loss function as a stop
+   criterion.
+ - `z_tol` : (`(0,1e-6)` by default) defines the absolute and relative
+   tolerance between two consecutive iteration of the estimate `z` as a stop
+   criterion.
+ - `extract_kwds` : (`(verb=true,)` by default) where other keywords can be
+   given which are forwarded to the `object_step` method. 
+
+See also [`AbstractBkg`](@ref), [`AbstractPSF`](@ref)
+
+#FIXME: size(psf_center) = (1, 1, size(ρ_map,3)) to specify in the doc?
+#FIXME: keywords for psf_params_bnds and psf_center_bnds to detail also here to
+make sure the user specifies them if auto_calib?
+#FIXME: change object_step! name in doc?
 """
 function extract_spectrum!(z::AbstractVector{T},
     F::SparseInterpolator{T},
@@ -30,8 +63,6 @@ function extract_spectrum!(z::AbstractVector{T},
     D::CalibratedData{T},
     Reg::Regularization,
     Bkg::Union{<:AbstractBkg,UndefInitializer} = undef;
-    #Reg_bkg::Union{Regul,UndefInitializer} = undef,
-    #fit_bkg!::Union{Function,UndefInitializer} = undef; #FIXME: not as an argument
     auto_calib::Val = Val(true),
     mask_width::Real = 3.0,
     max_iter::Int = 1000,
@@ -39,40 +70,43 @@ function extract_spectrum!(z::AbstractVector{T},
     z_tol::Tuple{Real,Real} = (0.0, 1e-6),
     extract_kwds::K = (verb=true,)) where {T,K<:NamedTuple}
     
-    #@assert axes(D.d) == axes(D.w) == axes(ρ_map) == axes(λ_map)
     @assert size(D.d) == LinearInterpolators.output_size(F)
     
     # Initialization
     iter = 0
-    Res = CalibratedData(copy(D.d), copy(D.w), copy(D.ρ_map), copy(D.λ_map))#FIXME sempai
+    Res = CalibratedData(copy(D.d), copy(D.w), copy(D.ρ_map), copy(D.λ_map))
     mask_z = similar(Res.w)
-    z_last = copy(z)
     H = similar(Res.d)
     ρ_map_centered = Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
-    psf_param = collect(psf[:])
+    # psf_param = collect(psf[:])#FIXME: doesn't seem to be used, remove?
     psf_map!(H, psf, ρ_map_centered, Res.λ_map)
+    z_last = copy(z)
     loss_last = loss(D, H, F, z, Reg, Bkg)
     while true
         if Bkg != undef
-            # Mask object
+            # Estimate the background component in the data
             if iter == 0
+                # Mask object for first iteration
                 copyto!(mask_z, mask_object(ρ_map_centered, Res.λ_map, psf; 
                                             mask_width=mask_width))
-                res_bkg = CalibratedData(D.d, D.w.*mask_z, D.ρ_map, D.λ_map)                            
-                fit_bkg!(Bkg, res_bkg)                                            
+                
+                res_bkg_masked_object = CalibratedData(D.d, D.w.*mask_z, D.ρ_map, D.λ_map) 
+                fit_bkg!(Bkg, res_bkg_masked_object)                                            
             else
-                #fill!(mask_z, T(1))
                 fit_bkg!(Bkg, Res)
             end
-            # Estimate background
-            #bkg_step!(Bkg, fit_bkg!, Res, Reg_bkg, mask_z; 
-            #          hide_object=(iter == 0)) #FIXME: fit_bkg! should not be an argument
+            # copy the background subtracted to data to Res for object spectrum extraction
             copyto!(Res.d, D.d - Bkg)
         end
-        # Estimate object's spectrum
-        psf = object_step!(z, psf, psf_center, F, Res, Reg; auto_calib=auto_calib, extract_kwds...)[2]
+
+        # Estimate object's spectrum FIXME: change name?
+        #FIXME: check psf_center is updated after this step?
+        psf = object_step!(z, psf, psf_center, F, Res, Reg; 
+                           auto_calib=auto_calib, extract_kwds...)[2]
+        # re-center the spatial map with the new centers of the psf
         copyto!(ρ_map_centered, Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
         psf_map!(H, psf, ρ_map_centered, Res.λ_map)
+
         # Stop criterions
         loss_temp = loss(D, H, F, z, Reg, Bkg)
         if (iter >= max_iter) || test_tol(loss_temp, loss_last, loss_tol) || 
@@ -96,12 +130,25 @@ end
 
 
 """
+    mask_object(ρ_map, λ_map, psf [; mask_width=3])
+
+yields a mask array of same size than `ρ_map` and `λ_map`, where all the pixels
+of distance less than the fwhm of `psf` times the `mask_width` are flagged as
+zeros, while the rest are at unitary level.
+
+To do so, the user needs to make sure that the `ρ_map` has its origin centered
+on the object of interest.
+
+See also [`AbstractPSF`](@ref), [`get_fwhm`](@ref)
+
 """
 function mask_object(ρ_map::AbstractArray{T,N},#must be centered
                      λ_map::AbstractArray{T,N},
                      psf::AbstractPSF;
                      mask_width::Union{T,AbstractVector{T}} = 3.0) where {T,N}
+    
     @assert axes(ρ_map) == axes(λ_map)
+    
     mask_z = ones(T, size(ρ_map))
     for i in eachindex(ρ_map)
         fwmh=getfwhm(psf, ρ_map[i], λ_map[i])
@@ -112,76 +159,70 @@ function mask_object(ρ_map::AbstractArray{T,N},#must be centered
 
     return mask_z
 end
-#=
-function mask_object(d::AbstractArray{T,N},
-    ρ_map::AbstractArray{T,N},
-    λ_map::AbstractArray{T,N};
-    mask_width::Real = 3.0) where {T,N}
-    
-    @assert axes(d) == axes(ρ_map) == axes(λ_map)
-
-    mask_z = ones(T, size(d))
-    for f in 1:size(d, 3)
-        #loc_z = lambda_ref(λ_map[:,:,f]) ./ λ_map[:,:,f] .* abs.(ρ_map[:,:,f]) FIXME: fix me please <(éwè)>
-        frame_mask = mask_z[:,:,f]
-        frame_mask[loc_z .< mask_width] .= T(0)
-    end
-
-    return mask_z
-end
-=#
-
-
-
-"""
-# """
-# function bkg_step!(Bkg::AbstractBkg,
-#     fit_bkg!::Function,
-#     D::CalibratedData{T},
-#     Reg_bkg::Regularization,
-#     mask_z::AbstractArray{T,N} = ones(size(D.w))) where {T,N}
-
-#     # Hide object component for first estimation of background
-#     w = D.w
-#     w_bkg = similar(w)
-#     if mask_z != ones(size(w))
-#         @inbounds for i in eachindex(w_bkg, mask_z, w)
-#             w_bkg[i] = mask_z[i]*w[i]
-#         end
-#     else
-#         w_bkg = copy(w)
-#     # Fit background
-#     return fit_bkg!(Bkg, D, mask_z)
-# end
 
 
 
 
 """
+    object_step!(z, psf, psf_center, F, D, Reg; kwds...)
+
+yields the object spectrum `z`, the off-axis PSF `psf` and its center along the
+spectral axis `psf_center`, extracted from the `CalibratedData` `D` via an a
+posteriori likelihood minimization with regularization `Reg`. The model of the
+object is defined by `Diag(H)*F*z` where `H` is found via the `psf_center` and `psf`
+arguments, using the method `psf_map!`. The optimization problem is solved by
+the `vmlmb` method defined in the `OptimPackNextGen` package by calling the
+method `fit_spectrum!`.
+
+An auto-calibration step can be done to better estimate the parameters, in`psf`, and
+center, `psf_center`, of the PSF. The Bobyqa method of Powell is used to
+estimate these quantities.
+
+# Keywords
+ - `auto_calib` : (`Val(true)` by default) precise if an auto-calibration step
+   of the PSF must be done after extracting the spectrum.
+ - `psf_params_bnds` : (a vector of zero-values Tuple by default) defines the
+   boundaries of the parameters of the PSF. If `auto_calib=true`, the user must
+   specify them.
+ - `psf_center_bnds` : (a vector of zero-values Tuple by default) defines the
+   boundaries of the center of the PSF along the spectral axis. If
+   `auto_calib=true`, the user must specify them.
+ - `max_iter` : (`1000` by default) defines the maximum number of iterations
+   that can do the method (useful when `auto_calib=true`).
+ - `loss_tol` : (`(0,1e-6)` by default) defines the absolute and relative
+   tolerance between two consecutive iteration of the loss function as a stop
+   criterion.
+ - `z_tol` : (`(0,1e-6)` by default) defines the absolute and relative
+   tolerance between two consecutive iteration of the estimate `z` as a stop
+   criterion.
+ - Other keywords can be given which are forwarded to the Bobyqa nethod.
+
+See also: [`OptimPackNextGen.vmlbm`](@ref),
+[`OptimPackNextGen.Powell.Bobyqa`](@ref), [`psf_map!`](@ref),
+[`fit_spectrum!`](@ref)
+
+FIXME: change name into object_spectrum_extraction?
 """
 function object_step!(z::AbstractVector{T},
-    psf::AbstractPSF,
-    psf_center::AbstractVector{T},
-    F::SparseInterpolator{T},
-    D::CalibratedData{T},
-    Reg::Regularization;
-    auto_calib::Val = Val(true),
-    psf_params_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf[:])],
-    psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
-    max_iter::Int = 1000,
-    loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
-    z_tol::Tuple{Real,Real} = (0.0, 1e-6),
-    #rho_params::Tuple{Real,Real} = (2.5e-1, 1e-5),
-    #rho_center::Tuple{Real,Real} = (5e-1, 1e-5),
-    kwds...) where {T,N}
+                      psf::AbstractPSF,
+                      psf_center::AbstractVector{T},
+                      F::SparseInterpolator{T},
+                      D::CalibratedData{T},
+                      Reg::Regularization;
+                      auto_calib::Val = Val(true),
+                      psf_params_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf[:])],
+                      psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
+                      max_iter::Int = 1000,
+                      loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
+                      z_tol::Tuple{Real,Real} = (0.0, 1e-6),
+                      kwds...) where {T,N}
     
     # Initialization
     iter = 0
-    z_last = copy(z)
     H = similar(D.d)
     ρ_map_centered = D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
     psf_map!(H, psf, ρ_map_centered, D.λ_map)
-    
+    z_last = copy(z)
     loss_last = loss(D, H, F, z, Reg)
     while true
         # Extract spectrum
@@ -196,14 +237,15 @@ function object_step!(z::AbstractVector{T},
         # Auto-calibration step
         if auto_calib == Val(true)
             psf = fit_psf_params(psf, psf_center, z, F, D; 
-                            psf_params_bnds=psf_params_bnds)#, rho_tol=rho_params)
+                                 psf_params_bnds=psf_params_bnds)
             fit_psf_center!(psf_center, psf, z, F, D;
-                            psf_center_bnds=psf_center_bnds)#, rho_tol=rho_center)
+                            psf_center_bnds=psf_center_bnds)
+            # re-center the spatial map with the new centers of the psf
             copyto!(ρ_map_centered, D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
             psf_map!(H, psf, ρ_map_centered, D.λ_map)
         end
         iter +=1
-        loss_last =  loss_temp
+        loss_last = loss_temp
         copyto!(z_last, z)
     end
 
@@ -214,13 +256,20 @@ end
 
 
 """
+    psf_map!(map, h, ρ, λ)
 
-#FIXME: psf_center is not an argument
+store in the `AbstractArray` `map` the result of applying the psf function
+stored in the `AbstractPSF` `h`, to each pixel `i` of the spatial and spectral
+maps `ρ` and `λ`.
+
+See also [`psf_map`](@ref)
+
 """
 function psf_map!(map::AbstractArray{T,N},
                  h::AbstractPSF,
                  ρ::AbstractArray{T,N},
                  λ::AbstractArray{T,N}) where {N, T<:AbstractFloat}
+    
     @assert axes(map) == axes(ρ) == axes(λ)
 
     @inbounds for i in eachindex(map, ρ, λ)
@@ -228,31 +277,49 @@ function psf_map!(map::AbstractArray{T,N},
     end
 end
       
+"""
+    psf_map(h, ρ, λ)
+
+yield the result of `psf_map!` and store it in a new `AbstractArray`.
+
+See also [`psf_map!`](@ref)
+
+"""
 function psf_map(h::AbstractPSF,
                  ρ::AbstractArray{T,N},
                  λ::AbstractArray{T,N}) where {N, T<:AbstractFloat}
+
     @assert axes(ρ) == axes(λ)
+    
     map = similar(ρ)
     psf_map!(map, h, ρ, λ)
     return map
 end    
 
-"""
 
-FIXME: must see if direct inversion or vmlmb
+
+
+"""
+    fit_spectrum!(z, F, H, D, Reg ; kwds...)
+
+check if the `Regularization` `R` can be used in a direct inversion framework
+before calling the solve function (either `solve_analytic` or `solve_vmlmb`).
+The keywords `kwds` are forwarded to the method that solves the problem.
+
+See also [`InverseProblem.Regul`](@ref)
 
 """
 function fit_spectrum!(z::AbstractVector{T},
-    F::SparseInterpolator{T},
-    H::AbstractArray{T,N},
-    D::CalibratedData{T},
-    Reg::Regularization;
-    kwds...) where {T,N}
+                       F::SparseInterpolator{T},
+                       H::AbstractArray{T,N},
+                       D::CalibratedData{T},
+                       Reg::Regularization;
+                       kwds...) where {T,N}
 
     if InverseProblem.use_direct_inversion(Reg)
-        copyto!(z, solve_analytic!(F, H, D, Reg))
+        copyto!(z, solve_analytic!(F, H, D, Reg))#FIXME: no `!` here?
     else
-        copyto!(z, solve_vmlmb!(z, Diag(H) * F, D, Reg; kwds...))
+        copyto!(z, solve_vmlmb!(z, Diag(H) * F, D, Reg; kwds...))#FIXME: no `!` here?
     end
     
     return z
@@ -262,16 +329,29 @@ end
 
 
 """
+    solve_analytic!(F, H, D, Reg)
+
+yields the estimator by directly inverting the Normal equations:
+`
+        (F'*H'*Diag(D.w)*H*F + get_grad_op(R)) * z = F'.H*Diag(D.w)*D.d
+`
+where `D` is a `CalibratedData`, `get_grad_op` is a method returning the
+operator of the gradient of the `Regularization` `Reg` and `z` is the estimator
+the user is looking for.
+
+See also [`InversePbm.get_grad_op`](@ref)
+
+#FIXME: no `!` here?
 """
 function solve_analytic!(F::SparseInterpolator{T},
-    H::AbstractArray{T,N},
-    D::CalibratedData,
-    Reg::Regularization) where {T,N}
+                         H::AbstractArray{T,N},
+                         D::CalibratedData,
+                         Reg::Regularization) where {T,N}
     
     d, w = D.d, D.w
-
     sz=size(d)
     n=length(z)
+
     @assert sz == size(w)
     @assert sz == size(H)
     @assert μ >=0
@@ -288,20 +368,35 @@ function solve_analytic!(F::SparseInterpolator{T},
 end
 
 
-
-
 """
+    solve_vmlmb!(z0, A, D, Reg; [nonnegative=false,] kwds...)
+
+uses the `vmlmb!` method of `OptimPackNextGen` to estimate the solution of:
+`
+            argmin (A*z - D.d)'*Diag(D.w)*(A*z - D.d) + Reg(z)
+               z
+`
+with `D` a `CalibratedData`. The result is stored in `z0`.
+
+It is possible to indicate to the method `vmlmb` a positivity constraint for
+`z` by using the `nonnegative` keyword, as well as indicate more keywords to
+constrain the optimization.
+
+See also [`OptimPackNextGen.vmlbm!`](@ref)
+
+#FIXME: no `!` here?
 """
 function solve_vmlmb!(z0::AbstractVector{T},
-    A::Mapping,
-    D::CalibratedData{T},
-    Reg::Regularization;
-    nonnegative::Bool = false,
-    kwds...) where {T,N}
+                      A::Mapping,
+                      D::CalibratedData{T},
+                      Reg::Regularization;
+                      nonnegative::Bool = false,
+                      kwds...) where {T}
     
     d, w = D.d, D.w
 
     @assert is_linear(A)
+
     IP = InvProblem(A, d, w, Reg)
     function fg_solve!(z, g)
         return call!(IP, z, g)
@@ -320,19 +415,36 @@ end
 
 
 """
+    fit_psf_params(psf, psf_center, z, F, D; kwds...)
+
+yields a new PSF structure of same type than `psf`, where its parameters are
+estimated by Powell's Bobyqa method as defined in `OptimPackNextGen`. The center
+of the PSF is defined by the vector `psf_center`, while the spectrum of the
+object of interest can be retireve using the vector `z`, the `SparseInterpolator
+`F`, and the `CalibratedData` `D`.
+
+#Keywords
+ - `psf_params_bnds` : (a vector of zero-values Tuple by default) defines the
+   boundaries of the parameters of the PSF. The user must specify them.
+ - `rho_tol` : (`undef` by default) defines the size of the trust-region used to
+   estimate the parameters of the PSF.
+ - Other keywords can be given which are forwarded to the Bobyqa nethod.
+
+See also [`OptimPackNextGen.Powell.Bobyqa`](@ref)
+
 """
 function fit_psf_params(psf::AbstractPSF,
-    psf_center::AbstractVector{T},
-    z::AbstractVector{T},
-    F::SparseInterpolator{T},
-    D::CalibratedData{T};
-    psf_params_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf[:])],
-    rho_tol::Union{UndefInitializer,Tuple{Real,Real}} = undef,
-    kwds...) where {T,N}
+                        psf_center::AbstractVector{T},
+                        z::AbstractVector{T},
+                        F::SparseInterpolator{T},
+                        D::CalibratedData{T};
+                        psf_params_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf[:])],
+                        rho_tol::Union{UndefInitializer,Tuple{Real,Real}} = undef,
+                        kwds...) where {T,N}
     
     @assert length(psf[:]) == length(psf_params_bnds)
 
-
+    # define the size of the trust region for bobyqa
     if rho_tol == undef
         rhobeg=(psf_params_bnds[1][2] - psf_params_bnds[1][1])/2
         for i = 2:length(psf_params_bnds)
@@ -340,6 +452,7 @@ function fit_psf_params(psf::AbstractPSF,
         end
         rho_tol = (0.99*rhobeg, 1e-3*rhobeg)
     end
+    # define boundaries to use for bobyqa
     bnd_min = zeros(length(psf_params_bnds))
     bnd_max = zeros(length(psf_params_bnds))
     for p in eachindex(psf_params_bnds)
@@ -348,6 +461,7 @@ function fit_psf_params(psf::AbstractPSF,
         bnd_max[p] = bnds_param[2]
     end
 
+    # define the likelihood to be minimized
     d, w, ρ_map, λ_map = D.d, D.w, D.ρ_map, D.λ_map
     ρ_map_centered = ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
     H_p = zeros(T, size(d))
@@ -358,24 +472,47 @@ function fit_psf_params(psf::AbstractPSF,
         return L(z)
     end
 
-    psf_param = collect(psf[:]) #FIXME: les paramètres sont scalaires donc immutables !!                                    
+    # create a vector containing the parameters of the PSF and calling Bobyqa
+    psf_param = collect(psf[:])                                  
     Bobyqa.minimize!(p -> likelihood!(p), psf_param, bnd_min, bnd_max, 
-                            rho_tol[1], rho_tol[2]; kwds...)[2]  
+                     rho_tol[1], rho_tol[2]; kwds...)[2]
+    
     return typeof(psf)(psf_param)
 end
 
 
+
+
+"""
+    fit_psf_center(psf_center, psf, z, F, D; kwds...)
+
+yields the center of the psf along the spectral axis, stored in `psf_center`,
+estimated by minimizing the likelihood formed with the `CalibratedData` `D`, the
+spectrum of the object `z` and the `SparseInterpolator` `F`.
+
+#Keywords
+ - `psf_center_bnds` : (a vector of zero-values Tuple by default) defines the
+   boundaries of the center of the PSF along the spectral axis. The user must
+   specify them.
+ - `rho_tol` : (`undef` by default) defines the size of the trust-region used to
+   estimate the parameters of the PSF.
+ - Other keywords can be given which are forwarded to the Bobyqa nethod.
+
+See also [`OptimPackNextGen.Powell.Bobyqa`](@ref)
+
+"""
 function fit_psf_center!(psf_center::AbstractVector{T},
-    psf::AbstractPSF,
-    z::AbstractVector{T},
-    F::SparseInterpolator{T},
-    D::CalibratedData{T};
-    psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
-    rho_tol::Union{UndefInitializer,Tuple{Real,Real}} = undef,
-    kwds...) where {T,N}
+                         psf::AbstractPSF,
+                         z::AbstractVector{T},
+                         F::SparseInterpolator{T},
+                         D::CalibratedData{T};
+                         psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
+                         rho_tol::Union{UndefInitializer,Tuple{Real,Real}} = undef,
+                         kwds...) where {T,N}
     
     @assert length(psf_center) == length(psf_center_bnds)
 
+    # define the size of the trust region for bobyqa
     if rho_tol == undef
         rhobeg=(psf_center_bnds[1][2] - psf_center_bnds[1][1])/2
         for i = 2:length(psf_center_bnds)
@@ -383,6 +520,7 @@ function fit_psf_center!(psf_center::AbstractVector{T},
         end
         rho_tol = (0.99*rhobeg, 1e-3*rhobeg)
     end
+    # define boundaries to use for bobyqa
     bnd_min = zeros(length(psf_center))
     bnd_max = zeros(length(psf_center))
     for p in eachindex(psf_center_bnds)
@@ -391,14 +529,14 @@ function fit_psf_center!(psf_center::AbstractVector{T},
         bnd_max[p] = bnd[2]
     end
 
+    # define the likelihood to be minimized
     d, w, ρ_map, λ_map = D.d, D.w, D.ρ_map, D.λ_map
     ρ_map_c = zeros(T, size(d))
     H_c = zeros(T, size(d))
     function likelihood!(c)
-        ρ_map_c = ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
+        ρ_map_c = ρ_map .- reshape(c, 1, 1, length(psf_center))#FIXME: here c was replaced by psf_center!!!!! Check if still working
         psf_map!(H_c, psf, ρ_map_c, λ_map)
         L = Lkl(Diag(H_c) * F, d, w)
-
         return L(z)
     end
 
@@ -410,17 +548,24 @@ end
 
 
 """
+    loss(D, H, F, z, Reg [, Bkg=undef])
 
-FIXME: Bkg must contain the regul or result of regul for Bkg. And overload call
-and call! with AbstractBkg?
+yields the value of the loss function used to estimate the different parameters
+of the problem:
+`
+    (Diag(H)*F*z + Bkg.b - D.d)'*Diag(D.w)*(Diag(H)*F*z + Bkg.b - D.d) + Reg(z) + regul(Bkg)
+`
+where `Bkg.b` and `regul(Bkg)` are not taken into account if `Bkg=undef`.
+
+See also [`AbstractBkg`](@ref), [`InverseProblem.Regul`](@ref)
 
 """
 function loss(D::CalibratedData{T},
-    H::AbstractArray{T,N},
-    F::SparseInterpolator{T},
-    z::AbstractVector{T},
-    Reg::Regularization,
-    Bkg::Union{AbstractBkg,UndefInitializer} = undef) where {T,N}
+              H::AbstractArray{T,N},
+              F::SparseInterpolator{T},
+              z::AbstractVector{T},
+              Reg::Regularization,
+              Bkg::Union{AbstractBkg,UndefInitializer} = undef) where {T,N}
 
     # Computing Likelihood
     wks = vcopy(D.d)
