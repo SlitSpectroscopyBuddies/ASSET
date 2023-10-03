@@ -1,3 +1,10 @@
+#
+# types.jl
+#
+# ------------------------------------------------
+#
+# This file is part of ASSET
+
 
 """
     CalibratedData(d, w, ρ_map, λ_map) -> D
@@ -44,95 +51,40 @@ end
 """
     AbstractBkg
 
-Type that defines a background structure, when one want to both estimate the
-background sources of the data and extracting the spectrum of the object of
-interest.
+Type that defines a background structure, that is used to specify a certain
+model of the background present in the data and its associated regularization.
+This structure is used when one want to both estimate the background sources of
+the data and extracting the spectrum of the object of interest.
 
-An instance `B` of `AbstractBkg` must contain the parameters necessary to form
-the background model as well as a regularization structure. The method `regul`
-must be overload to yield the result of the regularization function applied to
-the model, or to parameters of the model, of the background.
+To define a structure `B` of type `AbstractBkg`, the user needs to overload three
+methods:
 
-To estimate the instance `B`, the method `fit_bkg!` must be overload, to be used
-as:
 ```julia
-julia> fit_bkg!(B, D, kwds...)
+julia> get_bkg(B)
 ```
-with `D` an instance of `CalibratedData`.
+which yields the background as an `AbstractArray` from parameters contained in
+`B`.
 
-Each new structure of type `AbstractBkg` must overload the addition and
-subtraction `Base` operators. 
+```julia
+julia> regul(B)
+```
+which yields the result of the regularization term(s), applied to the curent
+background model, that are used in the a posteriori likelihood minimization.
 
-FIXME: See the ideas.jl file
+```julia
+julia> fit_bkg!(B, D)
+```
+where `D` is a `CalibratedData`. This last function is the one called by
+`extract_spectrum` to estimate the background when assuming the object spectrum
+known (alternate estimation). 
+
+See also [`BkgMdl`](@ref)
 
 """
 abstract type AbstractBkg end
 
+Base.:+(m::AbstractArray{T,N}, B::AbstractBkg) where {T,N} = m .+ get_bkg(B)
+Base.:-(m::AbstractArray{T,N}, B::AbstractBkg) where {T,N} = m .- get_bkg(B)
 
 
-
-"""
-    BkgMdl(b, R)
-
-yields a structure of type `AbstractBkg`, composed of an `AbstractArray` `b` and
-an associated regularization `R` of type `Regularization`.
-
-# Example
-```julia
-# create a BkgMdl structure
-julia> B = BkgMdl(b, R)
-# add the structure to an AbstractArray
-julia> A = ones(size(b))
-julia> A + B
-```
-To apply the regularization to the background array:
-```julia
-julia> regul(B)
-```
-To fit the background to some `CalibratedData` `D`:
-```julia
-julia> fit_bkg!(B, D, true, kwds...)
-```
-where `kwds` specifies all the keywords used by the optimization method to
-estimate the background.
-
-See also [`AbstractBkg`](@ref)
-
-FIXME: See the ideas.jl file
-"""
-struct BkgMdl{T,N} <: AbstractBkg where {T,N}
-    b::AbstractArray{T,N}
-    R::Regularization
-end
-
-Base.:+(m::AbstractArray{T,N}, B::BkgMdl{T,M}) where {T,N,M} = m .+ B.b
-Base.:-(m::AbstractArray{T,N}, B::BkgMdl{T,M}) where {T,N,M} = m .- B.b
-
-regul(B::BkgMdl) = B.R(B.b)
-
-function fit_bkg!(B::BkgMdl{T}, 
-                  D::CalibratedData,
-                  nonnegative = true,
-                  kwds...) where {T <: AbstractFloat}
-    function fg_solve!(x, g)
-        fill!(g,0.0);
-        f = T(0)
-        if  InverseProblem.multiplier(B.R)>0 
-            f += B.R(x,g)
-        end
-        r = (x .- D.d)
-        wr = D.w .*r
-        vupdate!(g, 1, sum(wr, dims=3)[:,:])
-        f +=  vdot(r,wr)/2
-        return f 
-    end
-    
-    if nonnegative
-        vmlmb!(fg_solve!, B.b; lower=T(0), kwds...)
-    else
-        vmlmb!(fg_solve!, B.b; kwds...)
-    end
-    
-    return B.b
-end
 

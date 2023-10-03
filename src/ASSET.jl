@@ -34,6 +34,7 @@ using SparseArrays
 
 include("types.jl")
 include("algorithms.jl")
+include("bkg_models.jl")
 include("psf_models.jl")
 
 
