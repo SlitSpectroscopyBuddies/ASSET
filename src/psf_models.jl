@@ -14,10 +14,10 @@
 
 
 """
-        h=chromGaussianPSF(a)
+        chromGaussianPSF(a) -> h
     
-gives an AbstractPSF, more precisely a gaussian chromatic 
-PSF parametred by a, such that the gaussian variance is  σ² = aλ².
+Yields an AbstractPSF `h`, more precisely a gaussian chromatic 
+PSF parametred by `a`, such that the gaussian variance is  σ² = aλ².
 
 Then: 
 
@@ -25,9 +25,9 @@ Then:
     
 gives the value of the gaussian chromatic PSF for:
 
- - ρ, a float giving the position in the slit (in pixels)
+ - `ρ`, a float giving the position in the slit (in pixels)
     
- - λ, a float giving the wavelength (in μm)
+ - `λ`, a float giving the wavelength (in μm)
     
 which is:
 
@@ -53,14 +53,14 @@ end
 
 
 """
-        h=chromwmwGaussianPSF(p)
+        chromwmwGaussianPSF(p) -> h
     
-gives an AbstractPSF, more precisely a gaussian chromatic 
-PSF parametred by two variables given in a vector:
+Yields an AbstractPSF `h`, more precisely a gaussian chromatic 
+PSF parametred by two variables given in a vector `p = [a,b]`:
 
- - a the chromatic scalling
+ - `a` the chromatic scalling
    
- - b the minimum width
+ - `b` the minimum width
    
 such that the the variance of the PSF is  σ² = aλ² + b
 
@@ -70,9 +70,9 @@ Then:
     
 gives the value of the gaussian chromatic PSF for:
 
- - ρ, a float giving the position in the slit (in pixels)
+ - `ρ`, a float giving the position in the slit (in pixels)
    
- - λ, a float giving the wavelength (in μm)
+ - `λ`, a float giving the wavelength (in μm)
     
 which is:
 
@@ -100,14 +100,14 @@ end
 
 
 """
-        h=chromMoffatPSF(p)
+        chromMoffatPSF(p) -> h
     
-gives an AbstractPSF, more precisely a centrosymetric Moffat chromatic 
-PSF parametred by two variables given in a vector:
+Yields an AbstractPSF `h`, more precisely a centrosymetric Moffat chromatic 
+PSF parametred by two variables given in a vector `p=[a, β]`:
 
- - a the chromatic scalling
+ - `a the chromatic scalling
    
- - β the Moffat parameter
+ - `β` the Moffat parameter
    
 such that the the variance of the PSF is  σ² = aλ²
 
@@ -117,9 +117,9 @@ Then:
     
 gives the value of the centrosymetric Moffat chromatic PSF for:
 
- - ρ, a float giving the position in the slit (in pixels)
+ - `ρ`, a float giving the position in the slit (in pixels)
    
- - λ, a float giving the wavelength (in μm)
+ - `λ`, a float giving the wavelength (in μm)
     
 which is:
 
@@ -148,16 +148,16 @@ end
 
 
 """
-        h=chromwmwMoffatPSF(p)
+        chromwmwMoffatPSF(p) -> h
     
-gives an AbstractPSF, more precisely a centrosymetric Moffat chromatic 
-PSF parametred by two variables given in a vector:
+Yields an AbstractPSF `h`, more precisely a centrosymetric Moffat chromatic 
+PSF parametred by two variables given in a vector `p=[a, b, β]`:
 
- - a the chromatic scalling
+ - `a` the chromatic scalling
    
- - b the minimum width
+ - `b` the minimum width
  
- - β the Moffat parameter
+ - `β` the Moffat parameter
    
 such that the the variance of the PSF is  σ² = aλ² + b
 
@@ -167,9 +167,9 @@ Then:
     
 gives the value of the centrosymetric Moffat chromatic PSF for:
 
- - ρ, a float giving the position in the slit (in pixels)
+ - `ρ`, a float giving the position in the slit (in pixels)
    
- - λ, a float giving the wavelength (in μm)
+ - `λ`, a float giving the wavelength (in μm)
     
 which is:
 
