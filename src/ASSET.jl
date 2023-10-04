@@ -8,7 +8,7 @@
 #
 #-------------------------------------------------------------------------------
 # 
-# FIXME : choisir une licence !!! Copyright 2023 Samuel Thé & Laurence Denneulin 
+# Copyright 2023 SlitSpectroscopyBuddies organization (Samuel Thé & Laurence Denneulin) 
 #
 module ASSET
 
@@ -17,13 +17,15 @@ export
     BkgMdl,
     bkg_step!,
     CalibratedData,
+    chromGaussianPSF,
+    chromwmwGaussianPSF,
     extract_spectrum!,
     fit_psf_center!,
     fit_psf_params!,
     fit_spectrum!,
     loss,
     mask_object,
-    object_step!,
+    fit_spectrum_and_psf!,
     ParametrizedBkgMdl,
     psf_map!,
     solve_analytic!,
@@ -47,6 +49,6 @@ include("types.jl")
 include("algorithms.jl")
 include("bkg_models.jl")
 include("psf_models.jl")
-
+include("utils.jl")
 
 end # module ASSET

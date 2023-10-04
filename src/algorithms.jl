@@ -57,14 +57,10 @@ parameters and center of the PSF.
 
 See also [`AbstractBkg`](@ref), [`AbstractPSF`](@ref)
 
-#FIXME: size(psf_center) = (1, 1, size(ρ_map,3)) to specify in the doc?
-#FIXME: keywords for psf_params_bnds and psf_center_bnds to detail also here to
-make sure the user specifies them if auto_calib?
-#FIXME: object_step! changed to fit_spectrum_and_psf! 
 """
 function extract_spectrum!(z::AbstractVector{T},
     F::SparseInterpolator{T},
-    psf_center::AbstractArray{T},
+    psf_center::AbstractVector{T},
     psf::AbstractPSF,
     D::CalibratedData{T},
     Reg::Regularization,
@@ -104,7 +100,7 @@ function extract_spectrum!(z::AbstractVector{T},
             copyto!(Res.d, D.d - Bkg)
         end
 
-        # Estimate object's spectrum and autocalibrate object psf parameters FIXME: object_step! changed to fit_spectrum_and_psf! 
+        # Estimate object's spectrum and autocalibrate object psf parameters 
         psf = fit_spectrum_and_psf!(z, psf, psf_center, F, Res, Reg; 
                            auto_calib=auto_calib, extract_kwds...)[2]
                            
@@ -205,8 +201,6 @@ estimate these quantities.
 See also: [`OptimPackNextGen.vmlbm`](@ref),
 [`OptimPackNextGen.Powell.Bobyqa`](@ref), [`psf_map!`](@ref),
 [`fit_spectrum!`](@ref)
-
-FIXME: change name into object_spectrum_extraction?
 """
 function fit_spectrum_and_psf!(z::AbstractVector{T},
                       psf::AbstractPSF,
@@ -241,6 +235,9 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
         end
         # Auto-calibration step
         if auto_calib == Val(true)
+            check_bnds(psf_params_bnds)
+            check_bnds(psf_center_bnds)
+        
             psf = fit_psf_params(psf, psf_center, z, F, D; 
                                  psf_params_bnds=psf_params_bnds)
             fit_psf_center!(psf_center, psf, z, F, D;
@@ -256,9 +253,6 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
 
     return z, psf, psf_center
 end
-
-
-
 
 """
     psf_map!(map, h, ρ, λ)
@@ -345,8 +339,6 @@ operator of the gradient of the `Regularization` `Reg` and `z` is the estimator
 the user is looking for.
 
 See also [`InversePbm.get_grad_op`](@ref)
-
-#FIXME: no `!` here?
 """
 function solve_analytic(F::SparseInterpolator{T},
                          H::AbstractArray{T,N},
@@ -388,8 +380,6 @@ It is possible to indicate to the method `vmlmb` a positivity constraint for
 constrain the optimization.
 
 See also [`OptimPackNextGen.vmlbm!`](@ref)
-
-#FIXME: no `!` here?
 """
 function solve_vmlmb(z0::AbstractVector{T},
                       A::Mapping,
