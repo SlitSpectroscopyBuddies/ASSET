@@ -1,4 +1,15 @@
-
+#
+# ASSET.jl --
+#
+# ASSET is an Adaptive Slit Spectal Extraction Tool. 
+# This package aims at giving low-level general tools 
+# to the extraction of spectrum of an unresolved object 
+# with slit spectroscopy. 
+#
+#-------------------------------------------------------------------------------
+# 
+# FIXME : choisir une licence !!! Copyright 2023 Samuel Thé & Laurence Denneulin 
+#
 module ASSET
 
 export 

@@ -29,9 +29,9 @@ posteriori likelihood, where `Reg` is the regularization function of `z` (of
 type `InverseProblem.Regularization`) and where `Bkg` is a structure of type
 `AbstractBkg`, which contains a way to produce the background component and its
 regularization function. If `Bkg` is not given, the algorithm will suppose that
-there is no background in the data and will only call `object_step!`. If there
+there is no background in the data and will only call `fit_spectrum_and_psf!`. If there
 is a `Bkg` given, the algorithm will alternate the estimation of the background
-using `fit_bkg!` with the extraction of the spectrum (done in `object_step!`).
+using `fit_bkg!` with the extraction of the spectrum (done in `fit_spectrum_and_psf!`).
 
 Finally, an auto-calibration step can be activated which will refine the
 parameters and center of the PSF.
@@ -60,7 +60,7 @@ See also [`AbstractBkg`](@ref), [`AbstractPSF`](@ref)
 #FIXME: size(psf_center) = (1, 1, size(ρ_map,3)) to specify in the doc?
 #FIXME: keywords for psf_params_bnds and psf_center_bnds to detail also here to
 make sure the user specifies them if auto_calib?
-#FIXME: change object_step! name in doc?
+#FIXME: object_step! changed to fit_spectrum_and_psf! 
 """
 function extract_spectrum!(z::AbstractVector{T},
     F::SparseInterpolator{T},
@@ -84,7 +84,6 @@ function extract_spectrum!(z::AbstractVector{T},
     mask_z = similar(Res.w)
     H = similar(Res.d)
     ρ_map_centered = Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
-    # psf_param = collect(psf[:])#FIXME: doesn't seem to be used, remove?
     psf_map!(H, psf, ρ_map_centered, Res.λ_map)
     z_last = copy(z)
     loss_last = loss(D, H, F, z, Reg, Bkg)
@@ -105,10 +104,10 @@ function extract_spectrum!(z::AbstractVector{T},
             copyto!(Res.d, D.d - Bkg)
         end
 
-        # Estimate object's spectrum FIXME: change name?
-        #FIXME: check psf_center is updated after this step?
-        psf = object_step!(z, psf, psf_center, F, Res, Reg; 
+        # Estimate object's spectrum and autocalibrate object psf parameters FIXME: object_step! changed to fit_spectrum_and_psf! 
+        psf = fit_spectrum_and_psf!(z, psf, psf_center, F, Res, Reg; 
                            auto_calib=auto_calib, extract_kwds...)[2]
+                           
         # re-center the spatial map with the new centers of the psf
         copyto!(ρ_map_centered, Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
         psf_map!(H, psf, ρ_map_centered, Res.λ_map)
@@ -170,7 +169,7 @@ end
 
 
 """
-    object_step!(z, psf, psf_center, F, D, Reg; kwds...)
+    fit_spectrum_and_psf!(z, psf, psf_center, F, D, Reg; kwds...)
 
 yields the object spectrum `z`, the off-axis PSF `psf` and its center along the
 spectral axis `psf_center`, extracted from the `CalibratedData` `D` via an a
@@ -209,7 +208,7 @@ See also: [`OptimPackNextGen.vmlbm`](@ref),
 
 FIXME: change name into object_spectrum_extraction?
 """
-function object_step!(z::AbstractVector{T},
+function fit_spectrum_and_psf!(z::AbstractVector{T},
                       psf::AbstractPSF,
                       psf_center::AbstractVector{T},
                       F::SparseInterpolator{T},
@@ -221,7 +220,7 @@ function object_step!(z::AbstractVector{T},
                       max_iter::Int = 1000,
                       loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
                       z_tol::Tuple{Real,Real} = (0.0, 1e-6),
-                      kwds...) where {T,N}
+                      kwds...) where {T}
     
     # Initialization
     iter = 0
@@ -323,9 +322,9 @@ function fit_spectrum!(z::AbstractVector{T},
                        kwds...) where {T,N}
 
     if InverseProblem.use_direct_inversion(Reg)
-        copyto!(z, solve_analytic!(F, H, D, Reg))#FIXME: no `!` here?
+        copyto!(z, solve_analytic(F, H, D, Reg))
     else
-        copyto!(z, solve_vmlmb!(z, Diag(H) * F, D, Reg; kwds...))#FIXME: no `!` here?
+        copyto!(z, solve_vmlmb(z, Diag(H) * F, D, Reg; kwds...))
     end
     
     return z
@@ -349,23 +348,23 @@ See also [`InversePbm.get_grad_op`](@ref)
 
 #FIXME: no `!` here?
 """
-function solve_analytic!(F::SparseInterpolator{T},
+function solve_analytic(F::SparseInterpolator{T},
                          H::AbstractArray{T,N},
                          D::CalibratedData,
                          Reg::Regularization) where {T,N}
     
     d, w = D.d, D.w
     sz=size(d)
-    n=length(z)
+    n=F.ncols#length(z)
 
     @assert sz == size(w)
     @assert sz == size(H)
-    @assert μ >=0
+    @assert Reg.Reg.mu >=0
     
     A=spzeros(n,n)
     
     A = LinearInterpolators.SparseInterpolators.AtWA(F,H.*w.*H)
-    A += InversePbm.get_grad_op(Reg)
+    A += InverseProblem.get_grad_op(Reg)*spdiagm(0 => ones(n))
 
     b=zeros(n)
     b = F'*(H.*w.*d)
@@ -392,7 +391,7 @@ See also [`OptimPackNextGen.vmlbm!`](@ref)
 
 #FIXME: no `!` here?
 """
-function solve_vmlmb!(z0::AbstractVector{T},
+function solve_vmlmb(z0::AbstractVector{T},
                       A::Mapping,
                       D::CalibratedData{T},
                       Reg::Regularization;
@@ -446,7 +445,7 @@ function fit_psf_params(psf::AbstractPSF,
                         D::CalibratedData{T};
                         psf_params_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf[:])],
                         rho_tol::Union{UndefInitializer,Tuple{Real,Real}} = undef,
-                        kwds...) where {T,N}
+                        kwds...) where {T}
     
     @assert length(psf[:]) == length(psf_params_bnds)
 
@@ -514,7 +513,7 @@ function fit_psf_center!(psf_center::AbstractVector{T},
                          D::CalibratedData{T};
                          psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
                          rho_tol::Union{UndefInitializer,Tuple{Real,Real}} = undef,
-                         kwds...) where {T,N}
+                         kwds...) where {T}
     
     @assert length(psf_center) == length(psf_center_bnds)
 
@@ -540,13 +539,12 @@ function fit_psf_center!(psf_center::AbstractVector{T},
     ρ_map_c = zeros(T, size(d))
     H_c = zeros(T, size(d))
     function likelihood!(c)
-        ρ_map_c = ρ_map .- reshape(c, 1, 1, length(psf_center))#FIXME: here c was replaced by psf_center!!!!! Check if still working
+        ρ_map_c = ρ_map .- reshape(c, 1, 1, length(psf_center))
         psf_map!(H_c, psf, ρ_map_c, λ_map)
         L = Lkl(Diag(H_c) * F, d, w)
         return L(z)
     end
-
-
+    
     return Bobyqa.minimize!(c -> likelihood!(c), psf_center, bnd_min, bnd_max, 
                             rho_tol[1], rho_tol[2]; kwds...)[2]
 end
