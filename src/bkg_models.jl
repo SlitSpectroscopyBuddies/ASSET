@@ -43,7 +43,7 @@ struct BkgMdl{T,N,K} <: AbstractBkg where {T,N,K}
     kwds::K
 end
 
-BkgMdl(b::AbstractArray{T,N}, R::Regularization) where {T,N} = BkgMdl(b, R, (lower=T(0)))
+BkgMdl(b::AbstractArray{T,N}, R::Regularization) where {T,N} = BkgMdl(b, R, (lower=T(0),))
 
 get_bkg(B::BkgMdl) = B.b
 
