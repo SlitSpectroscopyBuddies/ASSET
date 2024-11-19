@@ -85,6 +85,7 @@ function extract_spectrum!(z::AbstractVector{T},
     loss_last = loss(D, H, F, z, Reg, Bkg)
     while true
         if Bkg != undef
+            copyto!(Res.d, D.d - H .* (F*z))
             # Estimate the background component in the data
             if iter == 0
                 # Mask object for first iteration
@@ -110,6 +111,7 @@ function extract_spectrum!(z::AbstractVector{T},
 
         # Stop criterions
         loss_temp = loss(D, H, F, z, Reg, Bkg)
+        display(loss_temp)
         if (iter >= max_iter) || test_tol(loss_temp, loss_last, loss_tol) || 
                                  test_tol(z, z_last, z_tol)
             if auto_calib == Val(:delay)
@@ -118,7 +120,6 @@ function extract_spectrum!(z::AbstractVector{T},
                 break
             end
         end
-        copyto!(Res.d, D.d - H .* (F*z))
         iter += 1
         loss_last = loss_temp
         copyto!(z_last, z)
@@ -227,17 +228,20 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
         # Extract spectrum
         fit_spectrum!(z, F, H, D, Reg; kwds...)
         # Stop criterions
+        if (auto_calib != Val(true)) 
+            break
+        end
         (auto_calib == Val(true)) && (loss_temp = loss(D, H, F, z, Reg)) 
-        if (auto_calib != Val(true)) || (iter >= max_iter) || 
-                                        test_tol(loss_temp, loss_last, loss_tol) || 
-                                        test_tol(z, z_last, z_tol)
+        if (iter > 1) && ((iter >= max_iter) ||
+           test_tol(loss_temp, loss_last, loss_tol) || 
+           test_tol(z, z_last, z_tol))
             break
         end
         # Auto-calibration step
         if auto_calib == Val(true)
             check_bnds(psf_params_bnds)
             check_bnds(psf_center_bnds)
-        
+            
             psf = fit_psf_params(psf, psf_center, z, F, D; 
                                  psf_params_bnds=psf_params_bnds)
             fit_psf_center!(psf_center, psf, z, F, D;
@@ -247,10 +251,10 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
             psf_map!(H, psf, ρ_map_centered, D.λ_map)
         end
         iter +=1
+        display(loss_temp)
         loss_last = loss_temp
         copyto!(z_last, z)
     end
-
     return z, psf, psf_center
 end
 
@@ -438,10 +442,11 @@ function fit_psf_params(psf::AbstractPSF,
                         kwds...) where {T}
     
     @assert length(psf[:]) == length(psf_params_bnds)
-
+    
+    # create a vector containing the parameters of the PSF
     # define the size of the trust region for bobyqa
-    if rho_tol == undef
-        rhobeg=(psf_params_bnds[1][2] - psf_params_bnds[1][1])/2
+    if rho_tol == undef               
+        rhobeg=(psf_params_bnds[1][2] - psf_params_bnds[1][1])/2                                     
         for i = 2:length(psf_params_bnds)
             rhobeg = min(rhobeg, (psf_params_bnds[i][2] - psf_params_bnds[i][1])/2)
         end
@@ -466,12 +471,13 @@ function fit_psf_params(psf::AbstractPSF,
         L = Lkl(Diag(H_p) * F, d, w)
         return L(z)
     end
-
-    # create a vector containing the parameters of the PSF and calling Bobyqa
-    psf_param = collect(psf[:])                                  
-    Bobyqa.minimize!(p -> likelihood!(p), psf_param, bnd_min, bnd_max, 
-                     rho_tol[1], rho_tol[2]; kwds...)[2]
-    
+    psf_param = collect(psf[:])  
+    if length(psf_param)<2
+        psf_param=fmin(likelihood!,bnd_min[1],bnd_max[1];kwds...)[1]
+    else
+        status, psf_param, fp = bobyqa!(likelihood!, psf_param, bnd_min, bnd_max, rho_tol[1], rho_tol[2]; kwds...)
+    #psf_param = bobyqa(likelihood!, psf_param, xl=bnd_min, xu=bnd_max, rhobeg=rho_tol[1], rhoend=rho_tol[2]; kwds...)[1]
+    end
     return typeof(psf)(psf_param)
 end
 
@@ -535,8 +541,12 @@ function fit_psf_center!(psf_center::AbstractVector{T},
         return L(z)
     end
     
-    return Bobyqa.minimize!(c -> likelihood!(c), psf_center, bnd_min, bnd_max, 
-                            rho_tol[1], rho_tol[2]; kwds...)[2]
+    info, pc, fp = bobyqa!(likelihood!, psf_center, bnd_min, bnd_max, 
+                            rho_tol[1], rho_tol[2]; kwds...)
+    psf_center .= pc    
+    #psf_center .= bobyqa(likelihood!, psf_center, xl=bnd_min, xu=bnd_max, 
+    #                        rhobeg=rho_tol[1], rhoend=rho_tol[2]; kwds...)[1]
+    return psf_center
 end
 
 

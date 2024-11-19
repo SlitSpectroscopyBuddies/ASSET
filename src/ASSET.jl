@@ -36,11 +36,14 @@ using InterpolationKernels
 using InverseProblem
 using LazyAlgebra
 using LinearInterpolators
+using PyPlot
 using OptimPackNextGen
-import OptimPackNextGen.Powell.Bobyqa
+import OptimPackNextGen.Brent
 using PointSpreadFunctions
 import PointSpreadFunctions:
     parameters, getfwhm
+using PowellMethods
+#using PRIMA
 using SparseArrays
 
 

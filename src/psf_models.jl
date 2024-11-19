@@ -40,15 +40,23 @@ struct chromGaussianPSF <: AbstractPSF{1}
 end
  
 function (P::chromGaussianPSF)(ρ::T,λ::T) where {T<:AbstractFloat}
-    σ² = P.a*λ*λ
-    return exp(-1/2 *ρ*ρ/σ²)/sqrt(2*pi*σ²)
+    if iszero(λ)
+        return  0.
+    else
+        σ² = P.a*λ*λ
+        return exp(-1/2 *ρ*ρ/σ²)/sqrt(2*pi*σ²)
+    end
 end
 
 @inline parameters(P::chromGaussianPSF) = getfield(P, :a)
 
 function getfwhm(P::chromGaussianPSF, ρ::T,λ::T) where {T<:AbstractFloat}
-    σ² = P.a*λ*λ
-    return 2*sqrt(2*log(2)*σ²)
+    if iszero(λ)
+        return  0.
+    else
+        σ² = P.a*λ*λ
+        return 2*sqrt(2*log(2)*σ²)
+    end
 end
 
 
@@ -87,15 +95,23 @@ struct chromwmwGaussianPSF <: AbstractPSF{1}
 end
     
 function (P::chromwmwGaussianPSF)(ρ::T,λ::T) where {T<:AbstractFloat}
-    σ² = P.a*λ*λ + P.b
-    return exp(-1/2 *ρ*ρ/σ²)/sqrt(2*pi*σ²)
+    if iszero(λ)
+        return  0.
+    else
+        σ² = P.a*λ*λ + P.b
+        return exp(-1/2 *ρ*ρ/σ²)/sqrt(2*pi*σ²)
+    end
 end
 
 @inline parameters(P::chromwmwGaussianPSF) = (getfield(P, :a),getfield(P, :b))
 
 function getfwhm(P::chromwmwGaussianPSF, ρ::T,λ::T) where {T<:AbstractFloat}
-    σ² = P.a*λ*λ +  P.b
-    return 2*sqrt(2*log(2)*σ²)
+    if iszero(λ)
+        return  0.
+    else
+        σ² = P.a*λ*λ +  P.b
+        return 2*sqrt(2*log(2)*σ²)
+    end
 end
 
 
@@ -135,15 +151,23 @@ end
 
  
 function (P::chromMoffatPSF)(ρ::T,λ::T) where {T<:AbstractFloat}
-    σ² = P.a*λ*λ
-    return (P.β-1)/(pi*σ²) * (1 + ρ*ρ/σ²)^(-P.β)
+    if iszero(λ)
+        return  0.
+    else
+        σ² = P.a*λ*λ
+        return (P.β-1)/(pi*σ²) * (1 + ρ*ρ/σ²)^(-P.β)
+    end
 end
 
 @inline parameters(P::chromMoffatPSF) = (getfield(P, :a),getfield(P, :β))
 
 function getfwhm(P::chromMoffatPSF, ρ::T,λ::T) where {T<:AbstractFloat}
-    σ² = P.a*λ*λ 
-    return 2*sqrt(σ²*(2^(1/P.β) -1))
+    if iszero(λ)
+        return  0.
+    else
+        σ² = P.a*λ*λ 
+        return 2*sqrt(σ²*(2^(1/P.β) -1))
+    end
 end
 
 
@@ -186,8 +210,12 @@ end
 
  
 function (P::chromwmwMoffatPSF)(ρ::T,λ::T) where {T<:AbstractFloat}
-    σ² = P.a*λ*λ +P.b
-    return (P.β-1)/(pi*σ²) * (1 + ρ*ρ/σ²)^(-P.β)
+    if iszero(λ)
+        return  0.
+    else
+        σ² = P.a*λ*λ +P.b
+        return (P.β-1)/(pi*σ²) * (1 + ρ*ρ/σ²)^(-P.β)
+    end
 end
 
 @inline parameters(P::chromwmwMoffatPSF) = (getfield(P, :a),
@@ -196,8 +224,12 @@ end
 
 
 function getfwhm(P::chromwmwMoffatPSF, ρ::T,λ::T) where {T<:AbstractFloat}
-    σ² = P.a*λ*λ +  P.b
-    return 2*sqrt(σ²*(2^(1/P.β) -1))
+    if iszero(λ)
+        return  0.
+    else
+        σ² = P.a*λ*λ +  P.b
+        return 2*sqrt(σ²*(2^(1/P.β) -1))
+    end
 end
 
 
