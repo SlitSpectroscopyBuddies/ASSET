@@ -1,30 +1,10 @@
-"""
-        oneDimensionalPSF(x) -> h
-       
-""" oneDimensionalPSF
+#
+# non_parametric_fitting.jl
+#
+# ------------------------------------------------
+#
+# This file is part of ASSET
 
-struct oneDimensionalPSF{V<:AbstractVector} <: NonParametricPSF
-    h::V
-end
-
-function (P::oneDimensionalPSF)(ρ::AbstractArray{T,N},
-                                λ::AbstractArray{T,N}) where {T<:AbstractFloat}
-    λref=maxium(λ)
-    γ[λ .!=0] .= λref./λ[λ .!=0]
-    X = γ.*ρ
-    xmin = minimum(X)
-    xmax = maximum(X)
-    x = range(minimum(X), stop=maximum(X), length=length(P.h))
-        return SparseInterpolator(convert(Kernel{T},ker),
-                                  convert_eltype(T,X),
-                                  convert_eltype(T,x))
-end
-
-@inline parameters(P::oneDimensionalPSF) = getfield(P, :h)
-
-function getfwhm(P::chromGaussianPSF, ρ::T,λ::T) where {T<:AbstractFloat}
-    @error "Not implented yet"
-end
 
 """
     psf_map!(map, h, ρ, λ)
@@ -37,23 +17,31 @@ See also [`psf_map`](@ref)
 
 """
 function psf_map!(map::AbstractArray{T,N},
-                 h::NonParametricPSF,
-                 ρ::AbstractArray{T,N},
-                 λ::AbstractArray{T,N}) where {N, T<:AbstractFloat}
+                  P::NonParametricPSF,
+                  ρ::AbstractArray{T,N},
+                  λ::AbstractArray{T,N}) where {N,T<:AbstractFloat}
     
     @assert axes(map) == axes(ρ) == axes(λ)
-
-        map = h(ρ, λ)*h[:]
+    
+    map = P.h(ρ, λ)*P.h[:]#FIXME: P(ρ,λ) * P.h[:] ????????
 end
-  
-function psf_map(h::NonParametricPSF,
+
+"""
+psf_map(h, ρ, λ)
+
+yield the result of `psf_map!` and store it in a new `AbstractArray`.
+
+See also [`psf_map!`](@ref)
+
+"""
+function psf_map(P::NonParametricPSF,
                  ρ::AbstractArray{T,N},
-                 λ::AbstractArray{T,N}) where {N, T<:AbstractFloat}
+                 λ::AbstractArray{T,N}) where {N,T<:AbstractFloat}
 
     @assert axes(ρ) == axes(λ)
     
     map = similar(ρ)
-    psf_map!(map, h, ρ, λ)
+    psf_map!(map, P, ρ, λ)
     return map
 end    
 
@@ -97,20 +85,21 @@ estimate these quantities.
 See also: [`OptimPackNextGen.vmlbm`](@ref),
 [`OptimPackNextGen.Powell.Bobyqa`](@ref), [`psf_map!`](@ref),
 [`fit_spectrum!`](@ref)
+#FIXME: update doc
 """
 function fit_spectrum_and_psf!(z::AbstractVector{T},
-                      psf::NonParametricPSF,
-                      psf_center::AbstractVector{T},
-                      F::SparseInterpolator{T},
-                      D::CalibratedData{T},
-                      Reg::Regularization;
-                      auto_calib::Val = Val(true),
-                      psf_params_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf[:])],
-                      psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
-                      max_iter::Int = 1000,
-                      loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
-                      z_tol::Tuple{Real,Real} = (0.0, 1e-6),
-                      kwds...) where {T}
+    psf::NonParametricPSF,
+    psf_center::AbstractVector{T},
+    F::SparseInterpolator{T},
+    D::CalibratedData{T},
+    Reg::Regularization;
+    auto_calib::Val = Val(true),
+    psf_params_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf[:])],
+    psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
+    max_iter::Int = 1000,
+    loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
+    z_tol::Tuple{Real,Real} = (0.0, 1e-6),
+    kwds...) where {T}
     
     # Initialization
     iter = 0
@@ -118,18 +107,18 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     ρ_map_centered = D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
     psf_map!(H, psf, ρ_map_centered, D.λ_map)
     z_last = copy(z)
-    loss_last = loss(D, H, F, z, Reg)
+    loss_last = loss(D, H, F, z, psf, Reg)
     while true
-        # Extract spectrum and PSF FIXME
-        
-        f=BilinearProblem(D.d,D.w,F, Fz, Reg, Reg);#FIXME regul sur z et regul sur h
-info, hopt, zopt = AMORS.solve!(f, h0, z0,μ=μ, ν=ν, first=Val(:x),xtol=1e-3,ytol=1e-3,maxiter=1000)
+        # Extract spectrum and PSF
+        f = BilinearProblem(D.d, D.w, F, Fz, psf.R, Reg);
+        info, hopt, zopt = AMORS.solve!(f, h0, z0, μ=μ, ν=ν, first=Val(:x),
+                                        xtol=1e-3,ytol=1e-3,maxiter=1000)
 
         # Stop criterions
         if (auto_calib != Val(true)) 
             break
         end
-        (auto_calib == Val(true)) && (loss_temp = loss(D, H, F, z, Reg)) 
+        (auto_calib == Val(true)) && (loss_temp = loss(D, H, F, z, psf, Reg)) 
         if (iter > 1) && ((iter >= max_iter) ||
            test_tol(loss_temp, loss_last, loss_tol) || 
            test_tol(z, z_last, z_tol))
@@ -140,8 +129,6 @@ info, hopt, zopt = AMORS.solve!(f, h0, z0,μ=μ, ν=ν, first=Val(:x),xtol=1e-3,
             check_bnds(psf_params_bnds)
             check_bnds(psf_center_bnds)
             
-            psf = fit_psf_params(psf, psf_center, z, F, D; 
-                                 psf_params_bnds=psf_params_bnds)
             fit_psf_center!(psf_center, psf, z, F, D;
                             psf_center_bnds=psf_center_bnds)
             # re-center the spatial map with the new centers of the psf

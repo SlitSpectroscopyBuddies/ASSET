@@ -35,7 +35,7 @@ which is:
     
 """ chromGaussianPSF
 
-struct chromGaussianPSF <: AbstractPSF{1}
+struct chromGaussianPSF <: ParametricPSF{1}
     a::Float64
 end
  
@@ -88,7 +88,7 @@ which is:
 
 """ chromwmwGaussianPSF
 
-struct chromwmwGaussianPSF <: AbstractPSF{1}
+struct chromwmwGaussianPSF <: ParametricPSF{2}
     a::Float64
     b::Float64
     chromwmwGaussianPSF(p::AbstractArray{Float64,1}) = new(p[1], p[2])
@@ -143,7 +143,7 @@ which is:
 
 """ chromMoffatPSF
 
-struct chromMoffatPSF <: AbstractPSF{1}
+struct chromMoffatPSF <: ParametricPSF{2}
     a::Float64
     β::Float64
     chromMoffatPSF(p::AbstractArray{Float64,1}) = new(p[1], p[2])
@@ -201,7 +201,7 @@ which is:
 
 """ chromwmwMoffatPSF
 
-struct chromwmwMoffatPSF <: AbstractPSF{1}
+struct chromwmwMoffatPSF <: ParametricPSF{3}
     a::Float64
     b::Float64
     β::Float64
@@ -232,4 +232,44 @@ function getfwhm(P::chromwmwMoffatPSF, ρ::T,λ::T) where {T<:AbstractFloat}
     end
 end
 
+
+
+"""
+        oneDimensionalPSF(x) -> h
+       
+""" oneDimensionalPSF
+
+struct oneDimensionalPSF{V<:AbstractVector,K<:Kernel,R<:Regularization} <: NonParametricPSF
+    h::V
+    ker::K
+    R::R
+    
+    function oneDimensionalPSF(h::AbstractVector,
+                               ker::Kernel = CatmullRomSpline(Float64, Flat),
+                               R::Regularization = tikhonov())
+        return oneDimensionalPSF(h, ker, R)
+    end
+end
+
+
+function (P::oneDimensionalPSF)(ρ::AbstractArray{T,N},
+                                λ::AbstractArray{T,N}) where {T<:AbstractFloat}
+    λref = maxium(λ)
+    γ[λ .!= 0] .= λref ./ λ[λ .!=0]
+    X = γ.*ρ
+    xmin = minimum(X)
+    xmax = maximum(X)
+    x = range(minimum(X), stop=maximum(X), length=length(P.h))
+    return SparseInterpolator(convert(Kernel{T}, P.ker),
+                              convert_eltype(T, X),
+                              convert_eltype(T, x))
+end
+
+@inline parameters(P::oneDimensionalPSF) = (getfield(P, :h), getfield(P, :ker), 
+                                            getfield(P, :R))
+
+function getfwhm(P::chromGaussianPSF, ρ::T,λ::T) where {T<:AbstractFloat}
+    # @error "Not implented yet"
+    return one(T) #FIXME: default value adjusted by mask_width
+end
 

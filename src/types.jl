@@ -88,3 +88,14 @@ Base.:-(m::AbstractArray{T,N}, B::AbstractBkg) where {T,N} = m .- get_bkg(B)
 
 
 
+"""
+"""
+abstract type ParametricPSF{N} <: AbstractPSF{N} end
+
+
+
+
+"""
+"""
+abstract type NonParametricPSF <: AbstractPSF end
+

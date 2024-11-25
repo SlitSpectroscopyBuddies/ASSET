@@ -63,7 +63,7 @@ function extract_spectrum!(z::AbstractVector{T},
     psf_center::AbstractVector{T},
     psf::AbstractPSF,
     D::CalibratedData{T},
-    Reg::Regularization,
+    Reg::Regularization,#FIXME: multiple regul for multiple params?
     Bkg::Union{<:AbstractBkg,UndefInitializer} = undef;
     auto_calib::Val = Val(true),
     mask_width::Real = 3.0,
@@ -82,7 +82,7 @@ function extract_spectrum!(z::AbstractVector{T},
     ρ_map_centered = Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
     psf_map!(H, psf, ρ_map_centered, Res.λ_map)
     z_last = copy(z)
-    loss_last = loss(D, H, F, z, Reg, Bkg)
+    loss_last = loss(D, H, F, z, psf, Reg, Bkg)
     while true
         if Bkg != undef
             copyto!(Res.d, D.d - H .* (F*z))
@@ -110,7 +110,7 @@ function extract_spectrum!(z::AbstractVector{T},
         psf_map!(H, psf, ρ_map_centered, Res.λ_map)
 
         # Stop criterions
-        loss_temp = loss(D, H, F, z, Reg, Bkg)
+        loss_temp = loss(D, H, F, z, psf, Reg, Bkg)
         display(loss_temp)
         if (iter >= max_iter) || test_tol(loss_temp, loss_last, loss_tol) || 
                                  test_tol(z, z_last, z_tol)
@@ -152,152 +152,16 @@ function mask_object(ρ_map::AbstractArray{T,N},#must be centered
     @assert axes(ρ_map) == axes(λ_map)
     
     mask_z = ones(T, size(ρ_map))
-    for i in eachindex(ρ_map)
+    psf_map = psf_map(psf, ρ_map, λ_map)
+    for i in eachindex(ρ_map, λ_map, psf_map, mask_z)
         fwmh=getfwhm(psf, ρ_map[i], λ_map[i])
-        if psf(ρ_map[i], λ_map[i]) <= mask_width * fwmh
+        if psf_map[i] <= mask_width * fwmh #psf(ρ_map[i], λ_map[i]) <= mask_width * fwmh
             mask_z[i] = T(0)
         end
     end
 
     return mask_z
 end
-
-
-
-
-"""
-    fit_spectrum_and_psf!(z, psf, psf_center, F, D, Reg; kwds...)
-
-yields the object spectrum `z`, the off-axis PSF `psf` and its center along the
-spectral axis `psf_center`, extracted from the `CalibratedData` `D` via an a
-posteriori likelihood minimization with regularization `Reg`. The model of the
-object is defined by `Diag(H)*F*z` where `H` is found via the `psf_center` and `psf`
-arguments, using the method `psf_map!`. The optimization problem is solved by
-the `vmlmb` method defined in the `OptimPackNextGen` package by calling the
-method `fit_spectrum!`.
-
-An auto-calibration step can be done to better estimate the parameters, in`psf`, and
-center, `psf_center`, of the PSF. The Bobyqa method of Powell is used to
-estimate these quantities.
-
-# Keywords
- - `auto_calib` : (`Val(true)` by default) precise if an auto-calibration step
-   of the PSF must be done after extracting the spectrum.
- - `psf_params_bnds` : (a vector of zero-values Tuple by default) defines the
-   boundaries of the parameters of the PSF. If `auto_calib=true`, the user must
-   specify them.
- - `psf_center_bnds` : (a vector of zero-values Tuple by default) defines the
-   boundaries of the center of the PSF along the spectral axis. If
-   `auto_calib=true`, the user must specify them.
- - `max_iter` : (`1000` by default) defines the maximum number of iterations
-   that can do the method (useful when `auto_calib=true`).
- - `loss_tol` : (`(0,1e-6)` by default) defines the absolute and relative
-   tolerance between two consecutive iteration of the loss function as a stop
-   criterion.
- - `z_tol` : (`(0,1e-6)` by default) defines the absolute and relative
-   tolerance between two consecutive iteration of the estimate `z` as a stop
-   criterion.
- - Other keywords can be given which are forwarded to the Bobyqa nethod.
-
-See also: [`OptimPackNextGen.vmlbm`](@ref),
-[`OptimPackNextGen.Powell.Bobyqa`](@ref), [`psf_map!`](@ref),
-[`fit_spectrum!`](@ref)
-"""
-function fit_spectrum_and_psf!(z::AbstractVector{T},
-                      psf::AbstractPSF,
-                      psf_center::AbstractVector{T},
-                      F::SparseInterpolator{T},
-                      D::CalibratedData{T},
-                      Reg::Regularization;
-                      auto_calib::Val = Val(true),
-                      psf_params_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf[:])],
-                      psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
-                      max_iter::Int = 1000,
-                      loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
-                      z_tol::Tuple{Real,Real} = (0.0, 1e-6),
-                      kwds...) where {T}
-    
-    # Initialization
-    iter = 0
-    H = similar(D.d)
-    ρ_map_centered = D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
-    psf_map!(H, psf, ρ_map_centered, D.λ_map)
-    z_last = copy(z)
-    loss_last = loss(D, H, F, z, Reg)
-    while true
-        # Extract spectrum
-        fit_spectrum!(z, F, H, D, Reg; kwds...)
-        # Stop criterions
-        if (auto_calib != Val(true)) 
-            break
-        end
-        (auto_calib == Val(true)) && (loss_temp = loss(D, H, F, z, Reg)) 
-        if (iter > 1) && ((iter >= max_iter) ||
-           test_tol(loss_temp, loss_last, loss_tol) || 
-           test_tol(z, z_last, z_tol))
-            break
-        end
-        # Auto-calibration step
-        if auto_calib == Val(true)
-            check_bnds(psf_params_bnds)
-            check_bnds(psf_center_bnds)
-            
-            psf = fit_psf_params(psf, psf_center, z, F, D; 
-                                 psf_params_bnds=psf_params_bnds)
-            fit_psf_center!(psf_center, psf, z, F, D;
-                            psf_center_bnds=psf_center_bnds)
-            # re-center the spatial map with the new centers of the psf
-            copyto!(ρ_map_centered, D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
-            psf_map!(H, psf, ρ_map_centered, D.λ_map)
-        end
-        iter +=1
-        display(loss_temp)
-        loss_last = loss_temp
-        copyto!(z_last, z)
-    end
-    return z, psf, psf_center
-end
-
-"""
-    psf_map!(map, h, ρ, λ)
-
-store in the `AbstractArray` `map` the result of applying the psf function
-stored in the `AbstractPSF` `h`, to each pixel `i` of the spatial and spectral
-maps `ρ` and `λ`.
-
-See also [`psf_map`](@ref)
-
-"""
-function psf_map!(map::AbstractArray{T,N},
-                 h::AbstractPSF,
-                 ρ::AbstractArray{T,N},
-                 λ::AbstractArray{T,N}) where {N, T<:AbstractFloat}
-    
-    @assert axes(map) == axes(ρ) == axes(λ)
-
-    @inbounds for i in eachindex(map, ρ, λ)
-        map[i] = h(ρ[i], λ[i])
-    end
-end
-      
-"""
-    psf_map(h, ρ, λ)
-
-yield the result of `psf_map!` and store it in a new `AbstractArray`.
-
-See also [`psf_map!`](@ref)
-
-"""
-function psf_map(h::AbstractPSF,
-                 ρ::AbstractArray{T,N},
-                 λ::AbstractArray{T,N}) where {N, T<:AbstractFloat}
-
-    @assert axes(ρ) == axes(λ)
-    
-    map = similar(ρ)
-    psf_map!(map, h, ρ, λ)
-    return map
-end    
 
 
 
@@ -326,6 +190,74 @@ function fit_spectrum!(z::AbstractVector{T},
     end
     
     return z
+end
+
+
+
+
+"""
+    fit_psf_center(psf_center, psf, z, F, D; kwds...)
+
+yields the center of the psf along the spectral axis, stored in `psf_center`,
+estimated by minimizing the likelihood formed with the `CalibratedData` `D`, the
+spectrum of the object `z` and the `SparseInterpolator` `F`.
+
+#Keywords
+ - `psf_center_bnds` : (a vector of zero-values Tuple by default) defines the
+   boundaries of the center of the PSF along the spectral axis. The user must
+   specify them.
+ - `rho_tol` : (`undef` by default) defines the size of the trust-region used to
+   estimate the parameters of the PSF.
+ - Other keywords can be given which are forwarded to the Bobyqa nethod.
+
+See also [`OptimPackNextGen.Powell.Bobyqa`](@ref)
+
+"""
+function fit_psf_center!(psf_center::AbstractVector{T},
+                         psf::AbstractPSF,
+                         z::AbstractVector{T},
+                         F::SparseInterpolator{T},
+                         D::CalibratedData{T};
+                         psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
+                         rho_tol::Union{UndefInitializer,Tuple{Real,Real}} = undef,
+                         kwds...) where {T}
+    
+    @assert length(psf_center) == length(psf_center_bnds)
+
+    # define the size of the trust region for bobyqa
+    if rho_tol == undef
+        rhobeg=(psf_center_bnds[1][2] - psf_center_bnds[1][1])/2
+        for i = 2:length(psf_center_bnds)
+            rhobeg = min(rhobeg, (psf_center_bnds[i][2] - psf_center_bnds[i][1])/2)
+        end
+        rho_tol = (0.99*rhobeg, 1e-3*rhobeg)
+    end
+    # define boundaries to use for bobyqa
+    bnd_min = zeros(length(psf_center))
+    bnd_max = zeros(length(psf_center))
+    for p in eachindex(psf_center_bnds)
+        bnd = psf_center_bnds[p]
+        bnd_min[p] = bnd[1]
+        bnd_max[p] = bnd[2]
+    end
+
+    # define the likelihood to be minimized
+    d, w, ρ_map, λ_map = D.d, D.w, D.ρ_map, D.λ_map
+    ρ_map_c = zeros(T, size(d))
+    H_c = zeros(T, size(d))
+    function likelihood!(c)
+        ρ_map_c = ρ_map .- reshape(c, 1, 1, length(psf_center))
+        psf_map!(H_c, psf, ρ_map_c, λ_map)
+        L = Lkl(Diag(H_c) * F, d, w)
+        return L(z)
+    end
+    
+    info, pc, fp = bobyqa!(likelihood!, psf_center, bnd_min, bnd_max, 
+                            rho_tol[1], rho_tol[2]; kwds...)
+    psf_center .= pc    
+    #psf_center .= bobyqa(likelihood!, psf_center, xl=bnd_min, xu=bnd_max, 
+    #                        rhobeg=rho_tol[1], rhoend=rho_tol[2]; kwds...)[1]
+    return psf_center
 end
 
 
@@ -414,144 +346,6 @@ end
 
 
 """
-    fit_psf_params(psf, psf_center, z, F, D; kwds...)
-
-yields a new PSF structure of same type than `psf`, where its parameters are
-estimated by Powell's Bobyqa method as defined in `OptimPackNextGen`. The center
-of the PSF is defined by the vector `psf_center`, while the spectrum of the
-object of interest can be retireve using the vector `z`, the `SparseInterpolator
-`F`, and the `CalibratedData` `D`.
-
-#Keywords
- - `psf_params_bnds` : (a vector of zero-values Tuple by default) defines the
-   boundaries of the parameters of the PSF. The user must specify them.
- - `rho_tol` : (`undef` by default) defines the size of the trust-region used to
-   estimate the parameters of the PSF.
- - Other keywords can be given which are forwarded to the Bobyqa nethod.
-
-See also [`OptimPackNextGen.Powell.Bobyqa`](@ref)
-
-"""
-function fit_psf_params(psf::AbstractPSF,
-                        psf_center::AbstractVector{T},
-                        z::AbstractVector{T},
-                        F::SparseInterpolator{T},
-                        D::CalibratedData{T};
-                        psf_params_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf[:])],
-                        rho_tol::Union{UndefInitializer,Tuple{Real,Real}} = undef,
-                        kwds...) where {T}
-    
-    @assert length(psf[:]) == length(psf_params_bnds)
-    
-    # create a vector containing the parameters of the PSF
-    # define the size of the trust region for bobyqa
-    if rho_tol == undef               
-        rhobeg=(psf_params_bnds[1][2] - psf_params_bnds[1][1])/2                                     
-        for i = 2:length(psf_params_bnds)
-            rhobeg = min(rhobeg, (psf_params_bnds[i][2] - psf_params_bnds[i][1])/2)
-        end
-        rho_tol = (0.99*rhobeg, 1e-3*rhobeg)
-    end
-    # define boundaries to use for bobyqa
-    bnd_min = zeros(length(psf_params_bnds))
-    bnd_max = zeros(length(psf_params_bnds))
-    for p in eachindex(psf_params_bnds)
-        bnds_param = psf_params_bnds[p]
-        bnd_min[p] = bnds_param[1]
-        bnd_max[p] = bnds_param[2]
-    end
-
-    # define the likelihood to be minimized
-    d, w, ρ_map, λ_map = D.d, D.w, D.ρ_map, D.λ_map
-    ρ_map_centered = ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
-    H_p = zeros(T, size(d))
-    function likelihood!(p)
-        psf_p = typeof(psf)(p)
-        psf_map!(H_p, psf_p, ρ_map_centered, λ_map)
-        L = Lkl(Diag(H_p) * F, d, w)
-        return L(z)
-    end
-    psf_param = collect(psf[:])  
-    if length(psf_param)<2
-        psf_param=fmin(likelihood!,bnd_min[1],bnd_max[1];kwds...)[1]
-    else
-        status, psf_param, fp = bobyqa!(likelihood!, psf_param, bnd_min, bnd_max, rho_tol[1], rho_tol[2]; kwds...)
-    #psf_param = bobyqa(likelihood!, psf_param, xl=bnd_min, xu=bnd_max, rhobeg=rho_tol[1], rhoend=rho_tol[2]; kwds...)[1]
-    end
-    return typeof(psf)(psf_param)
-end
-
-
-
-
-"""
-    fit_psf_center(psf_center, psf, z, F, D; kwds...)
-
-yields the center of the psf along the spectral axis, stored in `psf_center`,
-estimated by minimizing the likelihood formed with the `CalibratedData` `D`, the
-spectrum of the object `z` and the `SparseInterpolator` `F`.
-
-#Keywords
- - `psf_center_bnds` : (a vector of zero-values Tuple by default) defines the
-   boundaries of the center of the PSF along the spectral axis. The user must
-   specify them.
- - `rho_tol` : (`undef` by default) defines the size of the trust-region used to
-   estimate the parameters of the PSF.
- - Other keywords can be given which are forwarded to the Bobyqa nethod.
-
-See also [`OptimPackNextGen.Powell.Bobyqa`](@ref)
-
-"""
-function fit_psf_center!(psf_center::AbstractVector{T},
-                         psf::AbstractPSF,
-                         z::AbstractVector{T},
-                         F::SparseInterpolator{T},
-                         D::CalibratedData{T};
-                         psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
-                         rho_tol::Union{UndefInitializer,Tuple{Real,Real}} = undef,
-                         kwds...) where {T}
-    
-    @assert length(psf_center) == length(psf_center_bnds)
-
-    # define the size of the trust region for bobyqa
-    if rho_tol == undef
-        rhobeg=(psf_center_bnds[1][2] - psf_center_bnds[1][1])/2
-        for i = 2:length(psf_center_bnds)
-            rhobeg = min(rhobeg, (psf_center_bnds[i][2] - psf_center_bnds[i][1])/2)
-        end
-        rho_tol = (0.99*rhobeg, 1e-3*rhobeg)
-    end
-    # define boundaries to use for bobyqa
-    bnd_min = zeros(length(psf_center))
-    bnd_max = zeros(length(psf_center))
-    for p in eachindex(psf_center_bnds)
-        bnd = psf_center_bnds[p]
-        bnd_min[p] = bnd[1]
-        bnd_max[p] = bnd[2]
-    end
-
-    # define the likelihood to be minimized
-    d, w, ρ_map, λ_map = D.d, D.w, D.ρ_map, D.λ_map
-    ρ_map_c = zeros(T, size(d))
-    H_c = zeros(T, size(d))
-    function likelihood!(c)
-        ρ_map_c = ρ_map .- reshape(c, 1, 1, length(psf_center))
-        psf_map!(H_c, psf, ρ_map_c, λ_map)
-        L = Lkl(Diag(H_c) * F, d, w)
-        return L(z)
-    end
-    
-    info, pc, fp = bobyqa!(likelihood!, psf_center, bnd_min, bnd_max, 
-                            rho_tol[1], rho_tol[2]; kwds...)
-    psf_center .= pc    
-    #psf_center .= bobyqa(likelihood!, psf_center, xl=bnd_min, xu=bnd_max, 
-    #                        rhobeg=rho_tol[1], rhoend=rho_tol[2]; kwds...)[1]
-    return psf_center
-end
-
-
-
-"""
     loss(D, H, F, z, Reg [, Bkg=undef])
 
 yields the value of the loss function used to estimate the different parameters
@@ -565,9 +359,10 @@ See also [`AbstractBkg`](@ref), [`InverseProblem.Regul`](@ref)
 
 """
 function loss(D::CalibratedData{T},
-              H::AbstractArray{T,N},
+              H::AbstractArray{T,N},#FIXME: regul of PSF
               F::SparseInterpolator{T},
               z::AbstractVector{T},
+              psf::AbstractPSF,
               Reg::Regularization,
               Bkg::Union{AbstractBkg,UndefInitializer} = undef) where {T,N}
 
@@ -579,11 +374,15 @@ function loss(D::CalibratedData{T},
     end
     lkl = vdot(wks, D.w .* wks)
 
-    #Computing Regularization
+    #Computing Regularization 
     r = Reg(z)
+    if typeof(psf) == NonParametricPSF
+        r += psf.R(psf.h[:])
+    end
     if Bkg != undef
         r += regul(Bkg)
     end
 
     return lkl + r
 end
+
