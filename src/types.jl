@@ -97,5 +97,5 @@ abstract type ParametricPSF{N} <: AbstractPSF{N} end
 
 """
 """
-abstract type NonParametricPSF <: AbstractPSF end
+abstract type NonParametricPSF{N} <: AbstractPSF{N} end
 

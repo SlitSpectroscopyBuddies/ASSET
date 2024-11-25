@@ -239,7 +239,7 @@ end
        
 """ oneDimensionalPSF
 
-struct oneDimensionalPSF{V<:AbstractVector,K<:Kernel,R<:Regularization} <: NonParametricPSF
+struct oneDimensionalPSF{V<:AbstractVector,K<:Kernel,R<:Regularization} <: NonParametricPSF{3}
     h::V
     ker::K
     R::R
@@ -253,7 +253,7 @@ end
 
 
 function (P::oneDimensionalPSF)(ρ::AbstractArray{T,N},
-                                λ::AbstractArray{T,N}) where {T<:AbstractFloat}
+                                λ::AbstractArray{T,N}) where {T<:AbstractFloat,N}
     λref = maxium(λ)
     γ[λ .!= 0] .= λref ./ λ[λ .!=0]
     X = γ.*ρ
@@ -268,7 +268,7 @@ end
 @inline parameters(P::oneDimensionalPSF) = (getfield(P, :h), getfield(P, :ker), 
                                             getfield(P, :R))
 
-function getfwhm(P::chromGaussianPSF, ρ::T,λ::T) where {T<:AbstractFloat}
+function getfwhm(P::oneDimensionalPSF, ρ::T,λ::T) where {T<:AbstractFloat}
     # @error "Not implented yet"
     return one(T) #FIXME: default value adjusted by mask_width
 end
