@@ -23,7 +23,7 @@ function psf_map!(map::AbstractArray{T,N},
     
     @assert axes(map) == axes(ρ) == axes(λ)
     
-    map = P.h(ρ, λ)*P.h[:]#FIXME: P(ρ,λ) * P.h[:] ????????
+    map = P(ρ, λ)*P.h[:]
 end
 
 """
@@ -103,22 +103,23 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     
     # Initialization
     iter = 0
-    H = similar(D.d)
+    #H = similar(D.d)
     ρ_map_centered = D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
-    psf_map!(H, psf, ρ_map_centered, D.λ_map)
+    #psf_map!(H, psf, ρ_map_centered, D.λ_map)
     z_last = copy(z)
-    loss_last = loss(D, H, F, z, psf, Reg)
+    loss_last = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)
+    Fh = psf(ρ_map_centered, D.λ_map)
     while true
+        f = BilinearProblem(D.d, D.w, Fh,  F, psf.R, Reg);
         # Extract spectrum and PSF
-        f = BilinearProblem(D.d, D.w, F, Fz, psf.R, Reg);
-        info, hopt, zopt = AMORS.solve!(f, h0, z0, μ=μ, ν=ν, first=Val(:x),
+        info, hopt, zopt = AMORS.solve!(f, h0, z0, first=Val(:x),
                                         xtol=1e-3,ytol=1e-3,maxiter=1000)
 
         # Stop criterions
         if (auto_calib != Val(true)) 
             break
         end
-        (auto_calib == Val(true)) && (loss_temp = loss(D, H, F, z, psf, Reg)) 
+        (auto_calib == Val(true)) && (loss_temp = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)) 
         if (iter > 1) && ((iter >= max_iter) ||
            test_tol(loss_temp, loss_last, loss_tol) || 
            test_tol(z, z_last, z_tol))
@@ -133,7 +134,8 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
                             psf_center_bnds=psf_center_bnds)
             # re-center the spatial map with the new centers of the psf
             copyto!(ρ_map_centered, D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
-            psf_map!(H, psf, ρ_map_centered, D.λ_map)
+            #psf_map!(H, psf, ρ_map_centered, D.λ_map)
+            Fh = psf(ρ_map_centered, D.λ_map)
         end
         iter +=1
         display(loss_temp)

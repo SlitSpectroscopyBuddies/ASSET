@@ -26,6 +26,7 @@ export
     loss,
     mask_object,
     fit_spectrum_and_psf!,
+    oneDimensionalPSF,
     ParametrizedBkgMdl,
     psf_map!,
     solve_analytic!,
@@ -49,9 +50,11 @@ using SparseArrays
 
 
 include("types.jl")
-include("algorithms.jl")
+include("non_parametric_fitting.jl")
+include("parametric_fitting.jl")
 include("bkg_models.jl")
 include("psf_models.jl")
 include("utils.jl")
+include("algorithms.jl")
 
 end # module ASSET

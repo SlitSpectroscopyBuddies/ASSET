@@ -108,7 +108,7 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     ρ_map_centered = D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
     psf_map!(H, psf, ρ_map_centered, D.λ_map)
     z_last = copy(z)
-    loss_last = loss(D, H, F, z, Reg)
+    loss_last = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)
     while true
         # Extract spectrum
         fit_spectrum!(z, F, H, D, Reg; kwds...)
@@ -116,7 +116,7 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
         if (auto_calib != Val(true)) 
             break
         end
-        (auto_calib == Val(true)) && (loss_temp = loss(D, H, F, z, Reg)) 
+        (auto_calib == Val(true)) && (loss_temp = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)) 
         if (iter > 1) && ((iter >= max_iter) ||
            test_tol(loss_temp, loss_last, loss_tol) || 
            test_tol(z, z_last, z_tol))

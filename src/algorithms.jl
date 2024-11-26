@@ -82,7 +82,7 @@ function extract_spectrum!(z::AbstractVector{T},
     ρ_map_centered = Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
     psf_map!(H, psf, ρ_map_centered, Res.λ_map)
     z_last = copy(z)
-    loss_last = loss(D, H, F, z, psf, Reg, Bkg)
+    loss_last = loss(CalibratedData(Res.d, Res.w, ρ_map_centered, Res.λ_map), psf, F, z, Reg, Bkg)
     while true
         if Bkg != undef
             copyto!(Res.d, D.d - H .* (F*z))
@@ -110,7 +110,7 @@ function extract_spectrum!(z::AbstractVector{T},
         psf_map!(H, psf, ρ_map_centered, Res.λ_map)
 
         # Stop criterions
-        loss_temp = loss(D, H, F, z, psf, Reg, Bkg)
+        loss_temp = loss(CalibratedData(Res.d, Res.w, ρ_map_centered, Res.λ_map), psf, F, z, Reg, Bkg)
         display(loss_temp)
         if (iter >= max_iter) || test_tol(loss_temp, loss_last, loss_tol) || 
                                  test_tol(z, z_last, z_tol)
@@ -359,12 +359,13 @@ See also [`AbstractBkg`](@ref), [`InverseProblem.Regul`](@ref)
 
 """
 function loss(D::CalibratedData{T},
-              H::AbstractArray{T,N},#FIXME: regul of PSF
+              psf::AbstractPSF,
               F::SparseInterpolator{T},
               z::AbstractVector{T},
-              psf::AbstractPSF,
               Reg::Regularization,
-              Bkg::Union{AbstractBkg,UndefInitializer} = undef) where {T,N}
+              Bkg::Union{AbstractBkg,UndefInitializer} = undef) where {T}
+    H = similar(D.d)  
+    psf_map!(H, psf, D.ρ_map, D.λ_map)
 
     # Computing Likelihood
     wks = vcopy(D.d)

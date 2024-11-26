@@ -243,26 +243,31 @@ struct oneDimensionalPSF{V<:AbstractVector,K<:Kernel,R<:Regularization} <: NonPa
     h::V
     ker::K
     R::R
-    
-    function oneDimensionalPSF(h::AbstractVector,
-                               ker::Kernel = CatmullRomSpline(Float64, Flat),
-                               R::Regularization = tikhonov())
-        return oneDimensionalPSF(h, ker, R)
-    end
 end
 
+function oneDimensionalPSF(h::AbstractVector{T};
+                              ker::Kernel = CatmullRomSpline(T, Flat),
+                              R::Regularization = tikhonov()) where {T<: AbstractFloat}
+        return oneDimensionalPSF(h, ker, R)
+end
 
 function (P::oneDimensionalPSF)(ρ::AbstractArray{T,N},
                                 λ::AbstractArray{T,N}) where {T<:AbstractFloat,N}
-    λref = maxium(λ)
-    γ[λ .!= 0] .= λref ./ λ[λ .!=0]
-    X = γ.*ρ
+    λref = maximum(λ)
+    γ = λref ./ λ
+    γ[λ .== 0] .= 0.
+    X = T.(γ.*ρ)
     xmin = minimum(X)
     xmax = maximum(X)
     x = range(minimum(X), stop=maximum(X), length=length(P.h))
-    return SparseInterpolator(convert(Kernel{T}, P.ker),
+    return Diag(γ)*SparseInterpolator(convert(Kernel{T}, P.ker),
+                              X,
+                              x) 
+                              #= 
+    FIXME: use Compat and Diag(γ)*SparseInterpolator(convert(Kernel{T}, P.ker),
                               convert_eltype(T, X),
                               convert_eltype(T, x))
+=#
 end
 
 @inline parameters(P::oneDimensionalPSF) = (getfield(P, :h), getfield(P, :ker), 
