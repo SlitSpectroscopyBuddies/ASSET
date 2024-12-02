@@ -251,6 +251,7 @@ function oneDimensionalPSF(h::AbstractVector{T};
         return oneDimensionalPSF(h, ker, R)
 end
 
+#=
 function (P::oneDimensionalPSF)(ρ::AbstractArray{T,N},
                                 λ::AbstractArray{T,N}) where {T<:AbstractFloat,N}
     λref = maximum(λ)
@@ -269,9 +270,27 @@ function (P::oneDimensionalPSF)(ρ::AbstractArray{T,N},
                               convert_eltype(T, x))
 =#
 end
+=#
+function (P::oneDimensionalPSF)(ρ::AbstractArray{T,N},
+                                λ::AbstractArray{T,N};
+                                λref = maximum(λ)) where {T<:AbstractFloat,N}
+    γ = λref ./ λ
+    γ[λ .== 0] .= 0.
+    X = T.(γ.*ρ)
+    xmin = minimum(X)
+    xmax = maximum(X)
+    x = range(minimum(X), stop=maximum(X), length=length(P.h))
+    return Diag(γ)*SparseInterpolator(convert(Kernel{T}, P.ker),
+                              X,
+                              x) 
+                              #= 
+    FIXME: use Compat and Diag(γ)*SparseInterpolator(convert(Kernel{T}, P.ker),
+                              convert_eltype(T, X),
+                              convert_eltype(T, x))
+=#
+end
 
-@inline parameters(P::oneDimensionalPSF) = (getfield(P, :h), getfield(P, :ker), 
-                                            getfield(P, :R))
+@inline parameters(P::oneDimensionalPSF) = (getfield(P, :h))
 
 function getfwhm(P::oneDimensionalPSF, ρ::T,λ::T) where {T<:AbstractFloat}
     # @error "Not implented yet"

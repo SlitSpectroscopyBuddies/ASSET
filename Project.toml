@@ -1,9 +1,11 @@
 name = "ASSET"
 uuid = "7bdfb42d-0e43-493a-99cb-cbf0ac68819a"
-authors = ["Samuel Thé <the.samuel.ad@gmail.com>"]
+authors = ["Samuel Thé <the.samuel.ad@gmail.com>", 
+           "Laurence Denneulin <ldenneulin@montesquiou.info"]
 version = "0.1.0"
 
 [deps]
+AMORS = "77d29c75-3847-48dd-b74a-66585bbee1d5"
 InterpolationKernels = "16730964-a2ec-11e9-36fa-47a4f82bfac6"
 InverseProblem = "64b5b672-16b6-410f-923c-75370071a2c8"
 LazyAlgebra = "aeaa251e-9d76-11e9-311b-83636bf44738"
@@ -16,4 +18,5 @@ PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
+AMORS = "0.3.0"
 PyPlot = "2.11.5"

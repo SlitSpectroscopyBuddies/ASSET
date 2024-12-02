@@ -136,7 +136,6 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
             psf_map!(H, psf, ρ_map_centered, D.λ_map)
         end
         iter +=1
-        display(loss_temp)
         loss_last = loss_temp
         copyto!(z_last, z)
     end

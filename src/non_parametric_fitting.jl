@@ -19,11 +19,12 @@ See also [`psf_map`](@ref)
 function psf_map!(map::AbstractArray{T,N},
                   P::NonParametricPSF,
                   ρ::AbstractArray{T,N},
-                  λ::AbstractArray{T,N}) where {N,T<:AbstractFloat}
+                  λ::AbstractArray{T,N};
+                  λref=maximum(λ)) where {N,T<:AbstractFloat}
     
     @assert axes(map) == axes(ρ) == axes(λ)
     
-    map = P(ρ, λ)*P.h[:]
+    map .= P(ρ, λ;λref)*P[:]
 end
 
 """
@@ -36,12 +37,13 @@ See also [`psf_map!`](@ref)
 """
 function psf_map(P::NonParametricPSF,
                  ρ::AbstractArray{T,N},
-                 λ::AbstractArray{T,N}) where {N,T<:AbstractFloat}
+                 λ::AbstractArray{T,N};
+                 λref=maximum(λ)) where {N,T<:AbstractFloat}
 
     @assert axes(ρ) == axes(λ)
     
     map = similar(ρ)
-    psf_map!(map, P, ρ, λ)
+    psf_map!(map, P, ρ, λ;λref)
     return map
 end    
 
@@ -94,11 +96,11 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     D::CalibratedData{T},
     Reg::Regularization;
     auto_calib::Val = Val(true),
-    psf_params_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf[:])],
     psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
     max_iter::Int = 1000,
     loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
     z_tol::Tuple{Real,Real} = (0.0, 1e-6),
+    h_tol::Tuple{Real,Real} = (0.0, 1e-6),
     kwds...) where {T}
     
     # Initialization
@@ -107,12 +109,13 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     ρ_map_centered = D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
     #psf_map!(H, psf, ρ_map_centered, D.λ_map)
     z_last = copy(z)
+    h_last=copy(psf[:])
     loss_last = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)
     Fh = psf(ρ_map_centered, D.λ_map)
     while true
         f = BilinearProblem(D.d, D.w, Fh,  F, psf.R, Reg);
         # Extract spectrum and PSF
-        info, hopt, zopt = AMORS.solve!(f, h0, z0, first=Val(:x),
+        AMORS.solve!(f, psf[:], z, first=Val(:x),
                                         xtol=1e-3,ytol=1e-3,maxiter=1000)
 
         # Stop criterions
@@ -122,14 +125,14 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
         (auto_calib == Val(true)) && (loss_temp = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)) 
         if (iter > 1) && ((iter >= max_iter) ||
            test_tol(loss_temp, loss_last, loss_tol) || 
-           test_tol(z, z_last, z_tol))
+           test_tol(z, z_last, z_tol) ||
+           test_tol(psf[:], h_last, h_tol))
             break
         end
         # Auto-calibration step
         if auto_calib == Val(true)
-            check_bnds(psf_params_bnds)
-            check_bnds(psf_center_bnds)
-            
+            #FIXME: seems not to be working
+            check_bnds(psf_center_bnds)            
             fit_psf_center!(psf_center, psf, z, F, D;
                             psf_center_bnds=psf_center_bnds)
             # re-center the spatial map with the new centers of the psf
@@ -138,10 +141,12 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
             Fh = psf(ρ_map_centered, D.λ_map)
         end
         iter +=1
-        display(loss_temp)
         loss_last = loss_temp
         copyto!(z_last, z)
+        copyto!(h_last, psf[:])
     end
     return z, psf, psf_center
 end
+
+
 

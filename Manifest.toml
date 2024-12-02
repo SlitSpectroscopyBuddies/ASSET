@@ -2,7 +2,15 @@
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "15eaaddec40b564fc1a2ccb02b9bda4246dca769"
+project_hash = "cf876a09df607a5b7b602a5593cfc166fcf4f8a5"
+
+[[deps.AMORS]]
+deps = ["LinearAlgebra", "Printf", "TypeUtils"]
+git-tree-sha1 = "add6c13a7a74a002dc4be3ca9edd3dac672635ad"
+repo-rev = "main"
+repo-url = "git@github.com:emmt/AMORS.jl.git"
+uuid = "77d29c75-3847-48dd-b74a-66585bbee1d5"
+version = "0.3.0"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]

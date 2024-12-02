@@ -33,6 +33,7 @@ export
     solve_vmlmb!
 
 import Base: +, -, axes, size, eltype, show, copy
+using AMORS
 using InterpolationKernels
 using InverseProblem
 using LazyAlgebra
