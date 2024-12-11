@@ -19,6 +19,7 @@ export
     CalibratedData,
     chromGaussianPSF,
     chromwmwGaussianPSF,
+    ChromaticSeriesExpansionsInterpolator,
     extract_spectrum!,
     fit_psf_center!,
     fit_psf_params!,
@@ -29,6 +30,7 @@ export
     oneDimensionalPSF,
     ParametrizedBkgMdl,
     psf_map!,
+    psf_map,
     solve_analytic!,
     solve_vmlmb!
 
@@ -37,6 +39,7 @@ using AMORS
 using InterpolationKernels
 using InverseProblem
 using LazyAlgebra
+import LazyAlgebra: Mapping, vcreate, vcopy, apply!
 using LinearInterpolators
 using PyPlot
 using OptimPackNextGen

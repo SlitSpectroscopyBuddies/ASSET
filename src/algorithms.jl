@@ -152,10 +152,10 @@ function mask_object(ρ_map::AbstractArray{T,N},#must be centered
     @assert axes(ρ_map) == axes(λ_map)
     
     mask_z = ones(T, size(ρ_map))
-    psf_map = psf_map(psf, ρ_map, λ_map)
-    for i in eachindex(ρ_map, λ_map, psf_map, mask_z)
+    map = psf_map(psf, ρ_map, λ_map)
+    for i in eachindex(ρ_map, λ_map, map, mask_z)
         fwmh=getfwhm(psf, ρ_map[i], λ_map[i])
-        if psf_map[i] <= mask_width * fwmh #psf(ρ_map[i], λ_map[i]) <= mask_width * fwmh
+        if map[i] <= mask_width * fwmh #psf(ρ_map[i], λ_map[i]) <= mask_width * fwmh
             mask_z[i] = T(0)
         end
     end

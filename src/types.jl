@@ -99,3 +99,171 @@ abstract type ParametricPSF{N} <: AbstractPSF{N} end
 """
 abstract type NonParametricPSF{N} <: AbstractPSF{N} end
 
+
+"""
+"""
+struct ChromaticSeriesExpansionsInterpolator{T<:AbstractFloat,
+                                  Trows<:Union{NTuple{2,Int},NTuple{3,Int}},
+                                  Tker<:Union{Kernel{T,2},Kernel{T,4}},
+                                  Tmap<:Union{AbstractArray{T,2},AbstractArray{T,3}},
+                                  Tx<:AbstractRange{T}} <: LinearMapping
+    cols::NTuple{2,Int} 
+    rows::Trows 
+    ker::Tker
+    X::Tmap
+    Λ::Tmap
+    x::Tx
+end
+
+function ChromaticSeriesExpansionsInterpolator{T}(ker::Kernel,
+                                X::Union{AbstractArray{<:Any,2},AbstractArray{<:Any,3}},
+                                Λ::Union{AbstractArray{<:Any,2},AbstractArray{<:Any,3}},
+                                x::AbstractRange;
+                                order=1) where {T <: AbstractFloat}
+    @assert size(X) == size(Λ)
+    ChromaticSeriesExpansionsInterpolator((length(x), order), 
+                               size(X), 
+                               convert(Kernel{T},ker), 
+                               T.(X),
+                               T.(Λ),
+                               x)
+end
+function ChromaticSeriesExpansionsInterpolator(ker::Kernel,
+                                X::AbstractArray{<:Any,N},
+                                Λ::AbstractArray{<:Any,N},
+                                x::AbstractRange;
+                                order=1) where{N}
+    T=Float64
+    ChromaticSeriesExpansionsInterpolator{T}(ker, X, Λ, x; order=order)
+end
+
+
+function vcreate(::Type{LazyAlgebra.Direct}, A::ChromaticSeriesExpansionsInterpolator{T},
+                 x::AbstractArray{T,2}, scratch::Bool = false) where {T <: AbstractFloat}
+    @assert !Base.has_offset_axes(x)
+    @assert size(x) == A.cols
+    Array{T,3}(undef, A.rows)
+end
+
+function vcreate(::Type{LazyAlgebra.Adjoint}, A::ChromaticSeriesExpansionsInterpolator{T},
+                 x::AbstractArray{T,3}, scratch::Bool = false) where {T <: AbstractFloat}
+    @assert !Base.has_offset_axes(x)
+    @assert size(x) == A.rows
+    Array{T,2}(undef, A.cols)
+end
+
+
+function apply!(α::Real,
+                ::Type{LazyAlgebra.Direct},
+                R::ChromaticSeriesExpansionsInterpolator{T},
+                src::AbstractArray{T,2},
+                scratch::Bool,
+                β::Real,
+                dst::AbstractArray{T,3}) where {T<:AbstractFloat}
+    @assert size(src) == R.cols
+    @assert size(dst) == R.rows
+    #Direct!(dst,src,R.ker,R.X,R.Y, R.Λ, R.x, R.y, R.λ);
+    
+    fill!(dst,zero(T))
+    xs=step(R.x)
+    
+    cx = (first(R.x)+ last(R.x))/2
+    qx = 1/xs
+    cqrx =  (1+ length(R.x))/2- qx*cx 
+    xlim = LinearInterpolators.limits(R.ker,length(R.x))
+      
+    S=4 #FIXME get directly the size of the kernel support
+    Λc = zeros(Int64,S)
+    Λw = zeros(S)
+    Xc = zeros(Int64,S)
+    Xw = zeros(S)
+    
+    λmax=maximum(R.Λ)    
+    
+    @inbounds for n=1:length(dst)
+        iszero(R.Λ[n]) && continue
+            nsum = zero(T)
+            Λn = R.Λ[n]
+            Xn = R.X[n]
+            γ = λmax/Λn
+                        
+            for o=1:R.cols[2]
+                Xn *= γ
+                Xpos = qx*Xn  + cqrx 
+                 
+                Xc[1],Xc[2],Xc[3],Xc[4],
+                Xw[1],Xw[2],Xw[3],Xw[4] = LinearInterpolators.getcoefs(R.ker,xlim,Xpos)   
+            
+                @simd for i=1:S
+                    I=Xc[i]
+                    nsum += Xw[i] * src[I,o]
+                end
+                
+                nsum *= γ  
+            end
+
+            dst[n] = nsum 
+    end
+    
+    dst .*=α
+    dst .+= β
+    
+    return dst
+
+end
+
+function apply!(α::Real,
+                ::Type{LazyAlgebra.Adjoint},
+                R::ChromaticSeriesExpansionsInterpolator{T},
+                src::AbstractArray{T,3},
+                scratch::Bool,
+                β::Real,
+                dst::AbstractArray{T,2}) where {T<:AbstractFloat}
+    @assert size(src) == R.rows
+    @assert size(dst) == R.cols
+    
+    fill!(dst,zero(T))
+    xs=step(R.x)
+    
+
+    cx = (first(R.x)+ last(R.x))/2
+    qx = 1/xs
+    cqrx =  (1+ length(R.x))/2- qx*cx 
+    xlim = LinearInterpolators.limits(R.ker,length(R.x))
+    
+    S=4 #FIXME get directly the size of the kernel support
+    Xc = zeros(Int64,S)
+    Xw = zeros(S)
+   
+    λmax= maximum(R.Λ)
+    
+    @inbounds for n=1:length(src)
+        iszero(R.Λ[n]) && continue
+            sn = src[n]
+            
+            Λn = R.Λ[n]
+            Xn = R.X[n]
+            γ = λmax/Λn
+            
+       
+            for o=1:R.cols[2]
+                sn *= γ
+                Xn *= γ
+                
+                Xpos = qx*Xn + cqrx 
+                Xc[1],Xc[2],Xc[3],Xc[4],
+                Xw[1],Xw[2],Xw[3],Xw[4] = LinearInterpolators.getcoefs(R.ker,xlim,Xpos)
+   
+                @simd for i=1:S
+                    I=Xc[i]
+                    dst[I,o] += Xw[i] * sn 
+                end
+            end
+    end
+    
+    dst .*=α
+    dst .+= β
+    
+    return dst
+end
+
