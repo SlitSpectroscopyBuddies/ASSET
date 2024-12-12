@@ -323,7 +323,7 @@ function (P::SeriesExpansionPSF)(ρ::AbstractArray{T,N},
     order=size(P.h)[2]
     γ = λref ./ λ
     γ[λ .== 0] .= 0.
-    X = T.(γ.^order .*ρ)
+    X = T.(γ .*ρ)
     xmin = minimum(X)
     xmax = maximum(X)
     x = range(minimum(X), stop=maximum(X), length=size(P.h)[1])

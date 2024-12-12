@@ -113,28 +113,32 @@ struct ChromaticSeriesExpansionsInterpolator{T<:AbstractFloat,
     X::Tmap
     Λ::Tmap
     x::Tx
+    a::Real
 end
 
 function ChromaticSeriesExpansionsInterpolator{T}(ker::Kernel,
                                 X::Union{AbstractArray{<:Any,2},AbstractArray{<:Any,3}},
                                 Λ::Union{AbstractArray{<:Any,2},AbstractArray{<:Any,3}},
                                 x::AbstractRange;
-                                order=1) where {T <: AbstractFloat}
+                                order=1,
+                                a=0.) where {T <: AbstractFloat}
     @assert size(X) == size(Λ)
     ChromaticSeriesExpansionsInterpolator((length(x), order), 
                                size(X), 
                                convert(Kernel{T},ker), 
                                T.(X),
                                T.(Λ),
-                               x)
+                               x,
+                               a)
 end
 function ChromaticSeriesExpansionsInterpolator(ker::Kernel,
                                 X::AbstractArray{<:Any,N},
                                 Λ::AbstractArray{<:Any,N},
                                 x::AbstractRange;
-                                order=1) where{N}
+                                order=1,
+                                a=0.) where{N}
     T=Float64
-    ChromaticSeriesExpansionsInterpolator{T}(ker, X, Λ, x; order=order)
+    ChromaticSeriesExpansionsInterpolator{T}(ker, X, Λ, x; order=order, a=a)
 end
 
 
@@ -185,14 +189,13 @@ function apply!(α::Real,
             nsum = zero(T)
             Λn = R.Λ[n]
             Xn = R.X[n]
-            γ = λmax/Λn
-                        
-            for o=1:R.cols[2]
-                Xn *= γ
-                Xpos = qx*Xn  + cqrx 
-                 
-                Xc[1],Xc[2],Xc[3],Xc[4],
-                Xw[1],Xw[2],Xw[3],Xw[4] = LinearInterpolators.getcoefs(R.ker,xlim,Xpos)   
+            γ = sqrt((R.a^2 + λmax/Λn)/(R.a^2+1))
+            Xn *= γ
+            Xpos = qx*Xn  + cqrx 
+                                 
+            Xc[1],Xc[2],Xc[3],Xc[4],
+            Xw[1],Xw[2],Xw[3],Xw[4] = LinearInterpolators.getcoefs(R.ker,xlim,Xpos)  
+            for o=R.cols[2]:-1:1
             
                 @simd for i=1:S
                     I=Xc[i]
@@ -243,16 +246,16 @@ function apply!(α::Real,
             
             Λn = R.Λ[n]
             Xn = R.X[n]
-            γ = λmax/Λn
+            γ = sqrt((R.a^2 + λmax/Λn)/(R.a^2+1))
             
+            Xn *= γ
+            
+            Xpos = qx*Xn + cqrx 
+            Xc[1],Xc[2],Xc[3],Xc[4],
+            Xw[1],Xw[2],Xw[3],Xw[4] = LinearInterpolators.getcoefs(R.ker,xlim,Xpos)
        
             for o=1:R.cols[2]
                 sn *= γ
-                Xn *= γ
-                
-                Xpos = qx*Xn + cqrx 
-                Xc[1],Xc[2],Xc[3],Xc[4],
-                Xw[1],Xw[2],Xw[3],Xw[4] = LinearInterpolators.getcoefs(R.ker,xlim,Xpos)
    
                 @simd for i=1:S
                     I=Xc[i]
