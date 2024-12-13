@@ -24,6 +24,7 @@ export
     fit_psf_center!,
     fit_psf_params!,
     fit_spectrum!,
+    fit_psf_shift,
     loss,
     mask_object,
     fit_spectrum_and_psf!,

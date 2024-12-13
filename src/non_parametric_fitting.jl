@@ -96,7 +96,7 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     D::CalibratedData{T},
     Reg::Regularization;
     auto_calib::Val = Val(true),
-    shift_bnds::Tuple{T,T} = (0.,0.),
+    psf_shift_bnds::Tuple{T,T} = (0.,0.),
     psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
     max_iter::Int = 1000,
     loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
@@ -133,7 +133,9 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
         # Auto-calibration step
         if auto_calib == Val(true)
             #FIXME: seems not to be working
-            check_bnds(psf_center_bnds)            
+            check_bnds(psf_center_bnds)        
+            psf = fit_psf_shift(psf, psf_center, z, F, D; 
+                                 psf_shift_bnds=psf_shift_bnds)    
             fit_psf_center!(psf_center, psf, z, F, D;
                             psf_center_bnds=psf_center_bnds)
             # re-center the spatial map with the new centers of the psf
@@ -148,21 +150,20 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     end
     return z, psf, psf_center
 end
-#=
-function fit_psf_shift!(psf::NonParametricPSF,
-                        psf_center::AbstractVector{T},
-                        z::AbstractVector{T},
-                        F::SparseInterpolator{T},
-                        D::CalibratedData{T};
-                        shift_bnds::Tuple{T,T} = (0.,0.),
-                        rho_tol::Union{UndefInitializer,Tuple{Real,Real}} = undef,
-                        kwds...) where {T}
+
+function fit_psf_shift(psf::NonParametricPSF,
+                       psf_center::AbstractVector{T},
+                       z::AbstractVector{T},
+                       F::SparseInterpolator{T},
+                       D::CalibratedData{T};
+                       psf_shift_bnds::Tuple{T,T} = (0.,0.),
+                       kwds...) where {T}
                         
     # create a vector containing the parameters of the PSF
     # define the size of the trust region for bobyqa
      # define boundaries to use for bobyqa
-    bnd_min = shift_bnds[1]
-    bnd_max = shift_bnds[2]
+    bnd_min = psf_shift_bnds[1]
+    bnd_max = psf_shift_bnds[2]
 
     # define the likelihood to be minimized
     d, w, ρ_map, λ_map = D.d, D.w, D.ρ_map, D.λ_map
@@ -176,7 +177,7 @@ function fit_psf_shift!(psf::NonParametricPSF,
     end
     shift_param = shift(psf)  
     shift_param=fmin(likelihood!,bnd_min,bnd_max;kwds...)[1]
-    end
-    return typeof(psf)(psf_param)
+
+    return typeof(psf)(psf[:],shift_param, psf.ker,psf.R)
 end
-=#
+
