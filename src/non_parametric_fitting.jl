@@ -96,6 +96,7 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     D::CalibratedData{T},
     Reg::Regularization;
     auto_calib::Val = Val(true),
+    shift_bnds::Tuple{T,T} = (0.,0.),
     psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
     max_iter::Int = 1000,
     loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
@@ -147,6 +148,35 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     end
     return z, psf, psf_center
 end
+#=
+function fit_psf_shift!(psf::NonParametricPSF,
+                        psf_center::AbstractVector{T},
+                        z::AbstractVector{T},
+                        F::SparseInterpolator{T},
+                        D::CalibratedData{T};
+                        shift_bnds::Tuple{T,T} = (0.,0.),
+                        rho_tol::Union{UndefInitializer,Tuple{Real,Real}} = undef,
+                        kwds...) where {T}
+                        
+    # create a vector containing the parameters of the PSF
+    # define the size of the trust region for bobyqa
+     # define boundaries to use for bobyqa
+    bnd_min = shift_bnds[1]
+    bnd_max = shift_bnds[2]
 
-
-
+    # define the likelihood to be minimized
+    d, w, ρ_map, λ_map = D.d, D.w, D.ρ_map, D.λ_map
+    ρ_map_centered = ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
+    H_p = zeros(T, size(d))
+    function likelihood!(a)
+        psf_p = typeof(psf)(psf[:],a, psf.ker,psf.R)
+        psf_map!(H_p, psf_p, ρ_map_centered, λ_map)
+        L = Lkl(Diag(H_p) * F, d, w)
+        return L(z)
+    end
+    shift_param = shift(psf)  
+    shift_param=fmin(likelihood!,bnd_min,bnd_max;kwds...)[1]
+    end
+    return typeof(psf)(psf_param)
+end
+=#
