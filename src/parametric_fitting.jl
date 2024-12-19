@@ -109,6 +109,7 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     psf_map!(H, psf, ρ_map_centered, D.λ_map)
     z_last = copy(z)
     loss_last = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)
+        display(psf)
     while true
         # Extract spectrum
         fit_spectrum!(z, F, H, D, Reg; kwds...)
@@ -117,7 +118,7 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
             break
         end
         (auto_calib == Val(true)) && (loss_temp = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)) 
-        if (iter > 1) && ((iter >= max_iter) ||
+        if (iter > 0) && ((iter >= max_iter) ||
            test_tol(loss_temp, loss_last, loss_tol) || 
            test_tol(z, z_last, z_tol))
             break
@@ -126,11 +127,12 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
         if auto_calib == Val(true)
             check_bnds(psf_params_bnds)
             check_bnds(psf_center_bnds)
-            
-            psf = fit_psf_params(psf, psf_center, z, F, D; 
-                                 psf_params_bnds=psf_params_bnds)
             fit_psf_center!(psf_center, psf, z, F, D;
                             psf_center_bnds=psf_center_bnds)
+            display(psf_center)
+            psf = fit_psf_params(psf, psf_center, z, F, D; 
+                                 psf_params_bnds=psf_params_bnds)
+            display(psf)
             # re-center the spatial map with the new centers of the psf
             copyto!(ρ_map_centered, D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
             psf_map!(H, psf, ρ_map_centered, D.λ_map)
@@ -139,6 +141,7 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
         loss_last = loss_temp
         copyto!(z_last, z)
     end
+        display(psf)
     return z, psf, psf_center
 end
 
@@ -207,8 +210,8 @@ function fit_psf_params(psf::ParametricPSF,
     if length(psf_param)<2
         psf_param=fmin(likelihood!,bnd_min[1],bnd_max[1];kwds...)[1]
     else
-        status, psf_param, fp = bobyqa!(likelihood!, psf_param, bnd_min, bnd_max, rho_tol[1], rho_tol[2]; kwds...)
-    #psf_param = bobyqa(likelihood!, psf_param, xl=bnd_min, xu=bnd_max, rhobeg=rho_tol[1], rhoend=rho_tol[2]; kwds...)[1]
+    #    status, psf_param, fp = bobyqa!(likelihood!, psf_param, bnd_min, bnd_max, rho_tol[1], rho_tol[2]; kwds...)
+    psf_param = bobyqa(likelihood!, psf_param, xl=bnd_min, xu=bnd_max, rhobeg=rho_tol[1], rhoend=rho_tol[2]; kwds...)[1]
     end
     return typeof(psf)(psf_param)
 end

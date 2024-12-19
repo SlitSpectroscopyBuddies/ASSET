@@ -252,11 +252,11 @@ function fit_psf_center!(psf_center::AbstractVector{T},
         return L(z)
     end
     
-    info, pc, fp = bobyqa!(likelihood!, psf_center, bnd_min, bnd_max, 
-                            rho_tol[1], rho_tol[2]; kwds...)
-    psf_center .= pc    
-    #psf_center .= bobyqa(likelihood!, psf_center, xl=bnd_min, xu=bnd_max, 
-    #                        rhobeg=rho_tol[1], rhoend=rho_tol[2]; kwds...)[1]
+    #info, pc, fp = bobyqa!(likelihood!, psf_center, bnd_min, bnd_max, 
+    #                        rho_tol[1], rho_tol[2]; kwds...)
+    #psf_center .= pc    
+    psf_center .= bobyqa(likelihood!, psf_center, xl=bnd_min, xu=bnd_max, 
+                            rhobeg=rho_tol[1], rhoend=rho_tol[2]; kwds...)[1]
     return psf_center
 end
 

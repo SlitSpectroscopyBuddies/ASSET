@@ -133,9 +133,11 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
         # Auto-calibration step
         if auto_calib == Val(true)
             #FIXME: seems not to be working
-            check_bnds(psf_center_bnds)        
+            check_bnds(psf_center_bnds)
+            if typeof(psf) <: SeriesExpansionPSF
             psf = fit_psf_shift(psf, psf_center, z, F, D; 
-                                 psf_shift_bnds=psf_shift_bnds)    
+                                 psf_shift_bnds=psf_shift_bnds)
+            end  
             fit_psf_center!(psf_center, psf, z, F, D;
                             psf_center_bnds=psf_center_bnds)
             # re-center the spatial map with the new centers of the psf

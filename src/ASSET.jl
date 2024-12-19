@@ -32,6 +32,7 @@ export
     ParametrizedBkgMdl,
     psf_map!,
     psf_map,
+    SeriesExpansionPSF,
     solve_analytic!,
     solve_vmlmb!
 
@@ -48,8 +49,8 @@ import OptimPackNextGen.Brent
 using PointSpreadFunctions
 import PointSpreadFunctions:
     parameters, getfwhm
-using PowellMethods
-#using PRIMA
+#using PowellMethods
+using PRIMA
 using SparseArrays
 
 

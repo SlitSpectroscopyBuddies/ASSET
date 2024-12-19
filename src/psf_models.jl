@@ -272,6 +272,7 @@ function (P::oneDimensionalPSF)(ρ::AbstractArray{T,N},
 end
 
 @inline parameters(P::oneDimensionalPSF) = (getfield(P, :h))
+@inline shift(P::oneDimensionalPSF)=0.
 
 function getfwhm(P::oneDimensionalPSF, ρ::T,λ::T) where {T<:AbstractFloat}
     # @error "Not implented yet"
