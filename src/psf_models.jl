@@ -320,7 +320,8 @@ end
 
 function getfwhm(P::SeriesExpansionPSF, ρ::T,λ::T) where {T<:AbstractFloat}
     # @error "Not implented yet"
-    return one(T) #FIXME: default value adjusted by mask_width
+    σ²=0.017*λ*λ #FIXME:use something less arbitrary
+    return 2*sqrt(2*log(2)*σ²)#one(T) #FIXME: default value adjusted by mask_width
 end
 
 
