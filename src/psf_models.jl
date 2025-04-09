@@ -155,7 +155,8 @@ function (P::chromMoffatPSF)(ρ::T,λ::T) where {T<:AbstractFloat}
         return  0.
     else
         σ² = P.a*λ*λ
-        return (P.β-1)/(pi*σ²) * (1 + ρ*ρ/σ²)^(-P.β)
+        A = sqrt(P.β/(σ²*pi*exp(1)))*(1 - 1/(2* P.β)) ^(1-P.β) #using Stirling Approximation
+        return A * (1 + ρ*ρ/σ²)^(-P.β)
     end
 end
 
@@ -213,8 +214,9 @@ function (P::chromwmwMoffatPSF)(ρ::T,λ::T) where {T<:AbstractFloat}
     if iszero(λ)
         return  0.
     else
-        σ² = P.a*λ*λ +P.b
-        return (P.β-1)/(pi*σ²) * (1 + ρ*ρ/σ²)^(-P.β)
+        σ² = P.a*λ*λ +P.b(P.β-1) 
+        A = sqrt(P.β/(σ²*pi*exp(1)))*(1 - 1/(2* P.β)) ^(1-P.β) #using Stirling Approximation
+        return A * (1 + ρ*ρ/σ²)^(-P.β)
     end
 end
 
