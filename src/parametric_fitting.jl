@@ -90,13 +90,14 @@ See also: [`OptimPackNextGen.vmlbm`](@ref),
 """
 function fit_spectrum_and_psf!(z::AbstractVector{T},
                       psf::ParametricPSF,
-                      psf_center::AbstractVector{T},
+                      #psf_center::AbstractVector{T},
                       F::SparseInterpolator{T},
                       D::CalibratedData{T},
                       Reg::Regularization;
                       auto_calib::Val = Val(true),
                       psf_params_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf[:])],
-                      psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
+                      #psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
+                      psf_center_bnd::T=0.,
                       max_iter::Int = 1000,
                       loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
                       z_tol::Tuple{Real,Real} = (0.0, 1e-6),
@@ -105,11 +106,16 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     # Initialization
     iter = 0
     H = similar(D.d)
-    ρ_map_centered = D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
-    psf_map!(H, psf, ρ_map_centered, D.λ_map)
+    #ρ_map_centered = D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
+    #psf_map!(H, psf, ρ_map_centered, D.λ_map)
+    psf_map!(H, psf, D.ρ_map, D.λ_map)
     z_last = copy(z)
-    loss_last = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)
-        display(psf)
+    #loss_last = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)
+    loss_last = loss(CalibratedData(D.d, D.w, D.ρ_map, D.λ_map), psf, F, z, Reg)
+    psf_center = zeros(size(D.ρ_map)[3])
+        psf_center_bnds = [(-psf_center_bnd, psf_center_bnd) for k=1:length(psf_center)]
+            
+        #display(psf)
     while true
         # Extract spectrum
         fit_spectrum!(z, F, H, D, Reg; kwds...)
@@ -117,7 +123,8 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
         if (auto_calib != Val(true)) 
             break
         end
-        (auto_calib == Val(true)) && (loss_temp = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)) 
+        #(auto_calib == Val(true)) && (loss_temp = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)) 
+        (auto_calib == Val(true)) && (loss_temp = loss(CalibratedData(D.d, D.w, D.ρ_map, D.λ_map), psf, F, z, Reg)) 
         if (iter > 0) && ((iter >= max_iter) ||
            test_tol(loss_temp, loss_last, loss_tol) || 
            test_tol(z, z_last, z_tol))
@@ -127,21 +134,25 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
         if auto_calib == Val(true)
             check_bnds(psf_params_bnds)
             check_bnds(psf_center_bnds)
+            fill!(psf_center,0.)
             fit_psf_center!(psf_center, psf, z, F, D;
                             psf_center_bnds=psf_center_bnds)
-            display(psf_center)
+            #display(psf_center)
             psf = fit_psf_params(psf, psf_center, z, F, D; 
                                  psf_params_bnds=psf_params_bnds)
-            display(psf)
+            #display(psf)
             # re-center the spatial map with the new centers of the psf
-            copyto!(ρ_map_centered, D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
-            psf_map!(H, psf, ρ_map_centered, D.λ_map)
+            #copyto!(ρ_map_centered, D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
+            #psf_map!(H, psf, ρ_map_centered, D.λ_map)
+            copyto!(D.ρ_map, D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
+            psf_map!(H, psf, D.ρ_map, D.λ_map)
+        
         end
         iter +=1
         loss_last = loss_temp
         copyto!(z_last, z)
     end
-        display(psf)
+        #display(psf)
     return z, psf, psf_center
 end
 

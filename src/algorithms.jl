@@ -60,7 +60,7 @@ See also [`AbstractBkg`](@ref), [`AbstractPSF`](@ref)
 """
 function extract_spectrum!(z::AbstractVector{T},
     F::SparseInterpolator{T},
-    psf_center::AbstractVector{T},
+    #psf_center::AbstractVector{T},
     psf::AbstractPSF,
     D::CalibratedData{T},
     Reg::Regularization,#FIXME: multiple regul for multiple params?
@@ -70,6 +70,7 @@ function extract_spectrum!(z::AbstractVector{T},
     max_iter::Int = 1000,
     loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
     z_tol::Tuple{Real,Real} = (0.0, 1e-6),
+    iterate_memory::Integer = 3, #the last iteration to compare to avoid eternal loops
     extract_kwds::K = (verb=true,)) where {T,K<:NamedTuple}
     
     @assert size(D.d) == LinearInterpolators.output_size(F)
@@ -79,17 +80,23 @@ function extract_spectrum!(z::AbstractVector{T},
     Res = CalibratedData(copy(D.d), copy(D.w), copy(D.ρ_map), copy(D.λ_map))
     mask_z = similar(Res.w)
     H = similar(Res.d)
-    ρ_map_centered = Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
-    psf_map!(H, psf, ρ_map_centered, Res.λ_map)
-    z_last = copy(z)
-    loss_last = loss(CalibratedData(Res.d, Res.w, ρ_map_centered, Res.λ_map), psf, F, z, Reg, Bkg)
+    #ρ_map_centered = Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
+    #psf_map!(H, psf, ρ_map_centered, Res.λ_map)
+    psf_map!(H, psf, Res.ρ_map, Res.λ_map)
+    z_last = zeros(length(z),iterate_memory)
+    z_last[:,1] .= copy(z)
+    #loss_last = loss(CalibratedData(Res.d, Res.w, ρ_map_centered, Res.λ_map), psf, F, z, Reg, Bkg)
+    loss_last = zeros(iterate_memory)
+    loss_last[1] = loss(CalibratedData(Res.d, Res.w, Res.ρ_map, Res.λ_map), psf, F, z, Reg, Bkg)
     while true
         if Bkg != undef
             copyto!(Res.d, D.d - H .* (F*z))
             # Estimate the background component in the data
             if iter == 0
                 # Mask object for first iteration
-                copyto!(mask_z, mask_object(ρ_map_centered, Res.λ_map, psf; 
+                #copyto!(mask_z, mask_object(ρ_map_centered, Res.λ_map, psf; 
+                #                            mask_width=mask_width))
+                copyto!(mask_z, mask_object(Res.ρ_map, Res.λ_map, psf; 
                                             mask_width=mask_width))
                 
                 res_bkg_masked_object = CalibratedData(D.d, D.w.*mask_z, D.ρ_map, D.λ_map) 
@@ -102,15 +109,22 @@ function extract_spectrum!(z::AbstractVector{T},
         end
 
         # Estimate object's spectrum and autocalibrate object psf parameters 
-        psf = fit_spectrum_and_psf!(z, psf, psf_center, F, Res, Reg; 
+        #psf = fit_spectrum_and_psf!(z, psf, psf_center, F, Res, Reg; 
+        #                   auto_calib=auto_calib, extract_kwds...)[2]
+        psf = fit_spectrum_and_psf!(z, psf, F, Res, Reg; 
                            auto_calib=auto_calib, extract_kwds...)[2]
                            
         # re-center the spatial map with the new centers of the psf
-        copyto!(ρ_map_centered, Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
-        psf_map!(H, psf, ρ_map_centered, Res.λ_map)
+        #copyto!(ρ_map_centered, Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
+        #psf_map!(H, psf, ρ_map_centered, Res.λ_map)
+        #copyto!(Res.ρ_map, Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
+        psf_map!(H, psf, Res.ρ_map, Res.λ_map)
+
 
         # Stop criterions
-        loss_temp = loss(CalibratedData(Res.d, Res.w, ρ_map_centered, Res.λ_map), psf, F, z, Reg, Bkg)
+        #loss_temp = loss(CalibratedData(Res.d, Res.w, ρ_map_centered, Res.λ_map), psf, F, z, Reg, Bkg)
+        loss_temp = loss(CalibratedData(Res.d, Res.w, Res.ρ_map, Res.λ_map), psf, F, z, Reg, Bkg)
+        
         display(loss_temp)
         if (iter >= max_iter) || test_tol(loss_temp, loss_last, loss_tol) || 
                                  test_tol(z, z_last, z_tol)
@@ -121,11 +135,12 @@ function extract_spectrum!(z::AbstractVector{T},
             end
         end
         iter += 1
-        loss_last = loss_temp
-        copyto!(z_last, z)
+        loss_last[mod(iter-1,iterate_memory)+1] = loss_temp
+        z_last[:,mod(iter-1,iterate_memory)+1] .= z
+        #copyto!(z_last, z)
     end
 
-    return z, psf, psf_center
+    return z, psf#, psf_center
 end
 
 

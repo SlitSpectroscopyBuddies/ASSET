@@ -40,6 +40,7 @@ import Base: +, -, axes, size, eltype, show, copy
 using AMORS
 using InterpolationKernels
 using InverseProblem
+import InverseProblem: test_tol
 using LazyAlgebra
 import LazyAlgebra: Mapping, vcreate, vcopy, apply!
 using LinearInterpolators

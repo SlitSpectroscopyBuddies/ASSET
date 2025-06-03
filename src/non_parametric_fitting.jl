@@ -91,13 +91,14 @@ See also: [`OptimPackNextGen.vmlbm`](@ref),
 """
 function fit_spectrum_and_psf!(z::AbstractVector{T},
     psf::NonParametricPSF,
-    psf_center::AbstractVector{T},
+    #psf_center::AbstractVector{T},
     F::SparseInterpolator{T},
     D::CalibratedData{T},
     Reg::Regularization;
     auto_calib::Val = Val(true),
     psf_shift_bnds::Tuple{T,T} = (0.,0.),
-    psf_center_bnds::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
+    #psf_center_bnd::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
+    psf_center_bnd::T=0.,
     max_iter::Int = 1000,
     loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
     z_tol::Tuple{Real,Real} = (0.0, 1e-6),
@@ -107,12 +108,17 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     # Initialization
     iter = 0
     #H = similar(D.d)
-    ρ_map_centered = D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
+    #ρ_map_centered = D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
     #psf_map!(H, psf, ρ_map_centered, D.λ_map)
     z_last = copy(z)
     h_last=copy(psf[:])
-    loss_last = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)
-    Fh = psf(ρ_map_centered, D.λ_map)
+    #loss_last = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)
+    #Fh = psf(ρ_map_centered, D.λ_map)
+    loss_last = loss(CalibratedData(D.d, D.w, D.ρ_map, D.λ_map), psf, F, z, Reg)
+    Fh = psf(D.ρ_map, D.λ_map)
+    psf_center = zeros(size(D.ρ_map)[3])
+    psf_center_bnds = [(-psf_center_bnd, psf_center_bnd) for k=1:length(psf_center)]
+
     while true
         f = BilinearProblem(D.d, D.w, Fh,  F, psf.R, Reg);
         # Extract spectrum and PSF
@@ -123,7 +129,9 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
         if (auto_calib != Val(true)) 
             break
         end
-        (auto_calib == Val(true)) && (loss_temp = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)) 
+        #(auto_calib == Val(true)) && (loss_temp = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)) 
+        (auto_calib == Val(true)) && (loss_temp = loss(CalibratedData(D.d, D.w, D.ρ_map, D.λ_map), psf, F, z, Reg)) 
+        
         if (iter > 1) && ((iter >= max_iter) ||
            test_tol(loss_temp, loss_last, loss_tol) || 
            test_tol(z, z_last, z_tol) ||
@@ -135,26 +143,28 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
             #FIXME: seems not to be working
             check_bnds(psf_center_bnds)
             if typeof(psf) <: SeriesExpansionPSF
-            psf = fit_psf_shift(psf, psf_center, z, F, D; 
+            psf = fit_psf_shift(psf, #psf_center, 
+                                z, F, D; 
                                  psf_shift_bnds=psf_shift_bnds)
             end  
+            fill!(psf_center, 0.)
             fit_psf_center!(psf_center, psf, z, F, D;
                             psf_center_bnds=psf_center_bnds)
             # re-center the spatial map with the new centers of the psf
-            copyto!(ρ_map_centered, D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
+            copyto!(D.ρ_map, D.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
             #psf_map!(H, psf, ρ_map_centered, D.λ_map)
-            Fh = psf(ρ_map_centered, D.λ_map)
+            Fh = psf(D.ρ_map, D.λ_map)
         end
         iter +=1
         loss_last = loss_temp
         copyto!(z_last, z)
         copyto!(h_last, psf[:])
     end
-    return z, psf, psf_center
+    return z, psf#, psf_center
 end
 
 function fit_psf_shift(psf::NonParametricPSF,
-                       psf_center::AbstractVector{T},
+                       #psf_center::AbstractVector{T},
                        z::AbstractVector{T},
                        F::SparseInterpolator{T},
                        D::CalibratedData{T};
@@ -169,11 +179,12 @@ function fit_psf_shift(psf::NonParametricPSF,
 
     # define the likelihood to be minimized
     d, w, ρ_map, λ_map = D.d, D.w, D.ρ_map, D.λ_map
-    ρ_map_centered = ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
+    #ρ_map_centered = ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
     H_p = zeros(T, size(d))
     function likelihood!(a)
         psf_p = typeof(psf)(psf[:],a, psf.ker,psf.R)
-        psf_map!(H_p, psf_p, ρ_map_centered, λ_map)
+        #psf_map!(H_p, psf_p, ρ_map_centered, λ_map)
+        psf_map!(H_p, psf_p, ρ_map, λ_map)
         L = Lkl(Diag(H_p) * F, d, w)
         return L(z)
     end

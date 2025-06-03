@@ -16,3 +16,14 @@ function check_bnds(bnds::AbstractVector{Tuple{T,T}}) where {T}
     end
 end
 
+
+function test_tol(temp::T, lasts::AbstractVector{T}, tol::Tuple{T,T}) where {T<:AbstractFloat}
+    test=[(abs(temp - lasts[k]) < tol[2]) for k=1:length(lasts)]
+    return prod(test)
+end
+
+
+function test_tol(temp::AbstractArray{T,1}, lasts::AbstractArray{T,2}, tol::Tuple{T,T}) where {T<:AbstractFloat}
+    test = [(sum(abs.(temp - lasts[:,k]))/sum(abs.(lasts[:,k])) < tol[2]) for k=1:size(lasts)[2]]
+    return prod(test)
+end

@@ -214,7 +214,7 @@ function (P::chromwmwMoffatPSF)(ρ::T,λ::T) where {T<:AbstractFloat}
     if iszero(λ)
         return  0.
     else
-        σ² = P.a*λ*λ +P.b(P.β-1) 
+        σ² = P.a*λ*λ +P.b 
         A = sqrt(P.β/(σ²*pi*exp(1)))*(1 - 1/(2* P.β)) ^(1-P.β) #using Stirling Approximation
         return A * (1 + ρ*ρ/σ²)^(-P.β)
     end
