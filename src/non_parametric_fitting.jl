@@ -100,6 +100,8 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     #psf_center_bnd::AbstractVector{Tuple{T,T}} = [(0.,0.) for i in 1:length(psf_center)],
     psf_center_bnd::T=0.,
     max_iter::Int = 1000,
+    max_amors_iter::Int = 10,
+    amors_tol::Tuple{Real,Real} = (1e-3,1e-3),
     loss_tol::Tuple{Real,Real} = (0.0, 1e-6),
     z_tol::Tuple{Real,Real} = (0.0, 1e-6),
     h_tol::Tuple{Real,Real} = (0.0, 1e-6),
@@ -118,20 +120,20 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     Fh = psf(D.ρ_map, D.λ_map)
     psf_center = zeros(size(D.ρ_map)[3])
     psf_center_bnds = [(-psf_center_bnd, psf_center_bnd) for k=1:length(psf_center)]
-
     while true
         f = BilinearProblem(D.d, D.w, Fh,  F, psf.R, Reg);
         # Extract spectrum and PSF
-        AMORS.solve!(f, psf[:], z, first=Val(:x),
-                                        xtol=1e-3,ytol=1e-3,maxiter=1000)
-
+        info, = AMORS.solve!(f, psf[:], z, first=Val(:x),
+                                        xtol=amors_tol[1],ytol=amors_tol[2],maxiter=max_amors_iter)
+        
+        psf[:] .*=info.α
+        z ./=info.α
         # Stop criterions
         if (auto_calib != Val(true)) 
             break
         end
         #(auto_calib == Val(true)) && (loss_temp = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)) 
         (auto_calib == Val(true)) && (loss_temp = loss(CalibratedData(D.d, D.w, D.ρ_map, D.λ_map), psf, F, z, Reg)) 
-        
         if (iter > 1) && ((iter >= max_iter) ||
            test_tol(loss_temp, loss_last, loss_tol) || 
            test_tol(z, z_last, z_tol) ||

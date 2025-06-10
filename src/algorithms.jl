@@ -84,10 +84,10 @@ function extract_spectrum!(z::AbstractVector{T},
     #psf_map!(H, psf, ρ_map_centered, Res.λ_map)
     psf_map!(H, psf, Res.ρ_map, Res.λ_map)
     z_last = zeros(length(z),iterate_memory)
-    z_last[:,1] .= copy(z)
+    z_last[:,iterate_memory] .= copy(z)
     #loss_last = loss(CalibratedData(Res.d, Res.w, ρ_map_centered, Res.λ_map), psf, F, z, Reg, Bkg)
     loss_last = zeros(iterate_memory)
-    loss_last[1] = loss(CalibratedData(Res.d, Res.w, Res.ρ_map, Res.λ_map), psf, F, z, Reg, Bkg)
+    loss_last[iterate_memory] = loss(CalibratedData(Res.d, Res.w, Res.ρ_map, Res.λ_map), psf, F, z, Reg, Bkg)
     while true
         if Bkg != undef
             copyto!(Res.d, D.d - H .* (F*z))
@@ -124,10 +124,10 @@ function extract_spectrum!(z::AbstractVector{T},
         # Stop criterions
         #loss_temp = loss(CalibratedData(Res.d, Res.w, ρ_map_centered, Res.λ_map), psf, F, z, Reg, Bkg)
         loss_temp = loss(CalibratedData(Res.d, Res.w, Res.ρ_map, Res.λ_map), psf, F, z, Reg, Bkg)
-        
-        display(loss_temp)
-        if (iter >= max_iter) || test_tol(loss_temp, loss_last, loss_tol) || 
-                                 test_tol(z, z_last, z_tol)
+        display(abs.(loss_last .-loss_temp)./loss_last)
+
+       if (iter >= max_iter) || test_tol(loss_temp, loss_last, loss_tol) || 
+                                 test_tol(z, z_last, z_tol) 
             if auto_calib == Val(:delay)
                 auto_calib = Val(true)
             else
@@ -139,7 +139,7 @@ function extract_spectrum!(z::AbstractVector{T},
         z_last[:,mod(iter-1,iterate_memory)+1] .= z
         #copyto!(z_last, z)
     end
-
+    
     return z, psf#, psf_center
 end
 
