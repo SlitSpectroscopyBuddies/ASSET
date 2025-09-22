@@ -112,7 +112,8 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     z_last = copy(z)
     #loss_last = loss(CalibratedData(D.d, D.w, ρ_map_centered, D.λ_map), psf, F, z, Reg)
     loss_last = loss(CalibratedData(D.d, D.w, D.ρ_map, D.λ_map), psf, F, z, Reg)
-    psf_center = zeros(size(D.ρ_map)[3])
+    axs_D = size(D.ρ_map)
+    psf_center = ( length(axs_D) == 3 ? zeros(axs_D[3]) : zeros(1) )
         psf_center_bnds = [(-psf_center_bnd, psf_center_bnd) for k=1:length(psf_center)]
             
         #display(psf)
