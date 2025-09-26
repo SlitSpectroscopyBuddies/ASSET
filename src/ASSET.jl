@@ -44,13 +44,12 @@ import InverseProblem: test_tol
 using LazyAlgebra
 import LazyAlgebra: Mapping, vcreate, vcopy, apply!
 using LinearInterpolators
-using PyPlot
 using OptimPackNextGen
 import OptimPackNextGen.Brent
 using PointSpreadFunctions
 import PointSpreadFunctions:
     parameters, getfwhm
-#using PowellMethods
+#using PowellMethods FIXME: Use PowellMethods instead of PRIMA, invest bound issues
 using PRIMA
 using SparseArrays
 

@@ -1,7 +1,6 @@
 name = "ASSET"
 uuid = "7bdfb42d-0e43-493a-99cb-cbf0ac68819a"
-authors = ["Samuel Thé <the.samuel.ad@gmail.com>", 
-           "Laurence Denneulin <ldenneulin@montesquiou.info"]
+authors = ["Samuel Thé <the.samuel.ad@gmail.com>", "Laurence Denneulin <ldenneulin@montesquiou.info"]
 version = "0.1.0"
 
 [deps]
@@ -14,9 +13,7 @@ OptimPackNextGen = "080ffe24-4a27-4ab0-ad71-7b624e73ef8d"
 PRIMA = "0a7d04aa-8ac2-47b3-b7a7-9dbd6ad661ed"
 PointSpreadFunctions = "59a21e54-00bc-4653-8d10-290de9306ebc"
 PowellMethods = "09143c45-d661-4475-8be2-834f77195a9c"
-PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
 AMORS = "0.3.0"
-PyPlot = "2.11.5"

@@ -60,7 +60,6 @@ See also [`AbstractBkg`](@ref), [`AbstractPSF`](@ref)
 """
 function extract_spectrum!(z::AbstractVector{T},
     F::SparseInterpolator{T},
-    #psf_center::AbstractVector{T},
     psf::AbstractPSF,
     D::CalibratedData{T},
     Reg::Regularization,#FIXME: multiple regul for multiple params?
@@ -80,12 +79,9 @@ function extract_spectrum!(z::AbstractVector{T},
     Res = CalibratedData(copy(D.d), copy(D.w), copy(D.ρ_map), copy(D.λ_map))
     mask_z = similar(Res.w)
     H = similar(Res.d)
-    #ρ_map_centered = Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
-    #psf_map!(H, psf, ρ_map_centered, Res.λ_map)
     psf_map!(H, psf, Res.ρ_map, Res.λ_map)
     z_last = zeros(length(z),iterate_memory)
     z_last[:,iterate_memory] .= copy(z)
-    #loss_last = loss(CalibratedData(Res.d, Res.w, ρ_map_centered, Res.λ_map), psf, F, z, Reg, Bkg)
     loss_last = zeros(iterate_memory)
     loss_last[iterate_memory] = loss(CalibratedData(Res.d, Res.w, Res.ρ_map, Res.λ_map), psf, F, z, Reg, Bkg)
     while true
@@ -94,8 +90,6 @@ function extract_spectrum!(z::AbstractVector{T},
             # Estimate the background component in the data
             if iter == 0
                 # Mask object for first iteration
-                #copyto!(mask_z, mask_object(ρ_map_centered, Res.λ_map, psf; 
-                #                            mask_width=mask_width))
                 copyto!(mask_z, mask_object(Res.ρ_map, Res.λ_map, psf; 
                                             mask_width=mask_width))
                 
@@ -109,20 +103,14 @@ function extract_spectrum!(z::AbstractVector{T},
         end
 
         # Estimate object's spectrum and autocalibrate object psf parameters 
-        #psf = fit_spectrum_and_psf!(z, psf, psf_center, F, Res, Reg; 
-        #                   auto_calib=auto_calib, extract_kwds...)[2]
         psf = fit_spectrum_and_psf!(z, psf, F, Res, Reg; 
                            auto_calib=auto_calib, extract_kwds...)[2]
                            
         # re-center the spatial map with the new centers of the psf
-        #copyto!(ρ_map_centered, Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
-        #psf_map!(H, psf, ρ_map_centered, Res.λ_map)
-        #copyto!(Res.ρ_map, Res.ρ_map .- reshape(psf_center, 1, 1, length(psf_center)))
         psf_map!(H, psf, Res.ρ_map, Res.λ_map)
 
 
         # Stop criterions
-        #loss_temp = loss(CalibratedData(Res.d, Res.w, ρ_map_centered, Res.λ_map), psf, F, z, Reg, Bkg)
         loss_temp = loss(CalibratedData(Res.d, Res.w, Res.ρ_map, Res.λ_map), psf, F, z, Reg, Bkg)
         display(abs.(loss_last .-loss_temp)./loss_last)
 
@@ -137,10 +125,9 @@ function extract_spectrum!(z::AbstractVector{T},
         iter += 1
         loss_last[mod(iter-1,iterate_memory)+1] = loss_temp
         z_last[:,mod(iter-1,iterate_memory)+1] .= z
-        #copyto!(z_last, z)
     end
     
-    return z, psf#, psf_center
+    return z, psf
 end
 
 
@@ -159,7 +146,7 @@ on the object of interest.
 See also [`AbstractPSF`](@ref), [`get_fwhm`](@ref)
 
 """
-function mask_object(ρ_map::AbstractArray{T,N},#must be centered
+function mask_object(ρ_map::AbstractArray{T,N},
                      λ_map::AbstractArray{T,N},
                      psf::AbstractPSF;
                      mask_width::Union{T,AbstractVector{T}} = 3.0) where {T,N}
@@ -170,7 +157,7 @@ function mask_object(ρ_map::AbstractArray{T,N},#must be centered
     map = psf_map(psf, ρ_map, λ_map)
     for i in eachindex(ρ_map, λ_map, map, mask_z)
         fwmh=getfwhm(psf, ρ_map[i], λ_map[i])
-        if map[i] <= mask_width * fwmh #psf(ρ_map[i], λ_map[i]) <= mask_width * fwmh
+        if map[i] <= mask_width * fwmh 
             mask_z[i] = T(0)
         end
     end
@@ -268,7 +255,7 @@ function fit_psf_center!(psf_center::AbstractVector{T},
     end
     
     #info, pc, fp = bobyqa!(likelihood!, psf_center, bnd_min, bnd_max, 
-    #                        rho_tol[1], rho_tol[2]; kwds...)
+    #                        rho_tol[1], rho_tol[2]; kwds...) FIXME: use PowellMethods instead of PRIMA, check bounds issues
     #psf_center .= pc    
     psf_center .= bobyqa(likelihood!, psf_center, xl=bnd_min, xu=bnd_max, 
                             rhobeg=rho_tol[1], rhoend=rho_tol[2]; kwds...)[1]
@@ -298,7 +285,7 @@ function solve_analytic(F::SparseInterpolator{T},
     
     d, w = D.d, D.w
     sz=size(d)
-    n=F.ncols#length(z)
+    n=F.ncols
 
     @assert sz == size(w)
     @assert sz == size(H)
