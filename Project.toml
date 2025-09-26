@@ -14,6 +14,8 @@ PRIMA = "0a7d04aa-8ac2-47b3-b7a7-9dbd6ad661ed"
 PointSpreadFunctions = "59a21e54-00bc-4653-8d10-290de9306ebc"
 PowellMethods = "09143c45-d661-4475-8be2-834f77195a9c"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
 AMORS = "0.3.0"
+Test = "1.11.0"
