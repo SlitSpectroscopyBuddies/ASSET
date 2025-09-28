@@ -112,7 +112,6 @@ function extract_spectrum!(z::AbstractVector{T},
 
         # Stop criterions
         loss_temp = loss(CalibratedData(Res.d, Res.w, Res.ρ_map, Res.λ_map), psf, F, z, Reg, Bkg)
-        display(abs.(loss_last .-loss_temp)./loss_last)
 
        if (iter >= max_iter) || test_tol(loss_temp, loss_last, loss_tol) || 
                                  test_tol(z, z_last, z_tol) 

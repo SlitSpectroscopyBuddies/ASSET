@@ -4,17 +4,31 @@ This package aims at giving low-level general tools to the extraction of spectru
 
 ## Installation
 
-Many of the dependencies are registered in the EmmtRegistry. In the Julia package manager, simply run:
+Many of the dependencies are registered in the `EmmtRegistry`. In the Julia package manager, simply run:
 
 ``````julia
 pkg> registry add https://github.com/emmt/EmmtRegistry
 ``````
+
+To install the necessary `InverseProblem` package, run:
+
+```julia
+pkg> add https://github.com/SJJThe/InverseProblem
+```
 
 Then, to install ASSET run:
 
 ```julia
 pkg> add https://github.com/SlitSpectroscopyBuddies/ASSET.git
 ```
+
+## Usage
+
+You can find in the `paper/` directory a description of the package and a usage
+example. The `demo/` directory also demonstrates on a toy model how to use the
+package.
+
+
 ## References
 
 The `ASSET` algorithm is described in the following papers:
