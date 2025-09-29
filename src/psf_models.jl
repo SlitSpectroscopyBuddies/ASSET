@@ -235,53 +235,6 @@ function getfwhm(P::chromwmwMoffatPSF, ρ::T,λ::T) where {T<:AbstractFloat}
 end
 
 
-
-"""
-        oneDimensionalPSF(x) -> h
-       
-""" oneDimensionalPSF
-
-struct oneDimensionalPSF{V<:AbstractVector,K<:Kernel,R<:Regularization} <: NonParametricPSF{3}
-    h::V
-    ker::K
-    R::R
-end
-
-function oneDimensionalPSF(h::AbstractVector{T};
-                              ker::Kernel = CatmullRomSpline(T, Flat),
-                              R::Regularization = tikhonov()) where {T<: AbstractFloat}
-        return oneDimensionalPSF(h, ker, R)
-end
-
-
-function (P::oneDimensionalPSF)(ρ::AbstractArray{T,N},
-                                λ::AbstractArray{T,N};
-                                λref = maximum(λ)) where {T<:AbstractFloat,N}
-    γ = λref ./ λ
-    γ[λ .== 0] .= 0.
-    X = T.(γ.*ρ)
-    xmin = minimum(X)
-    xmax = maximum(X)
-    x = range(minimum(X), stop=maximum(X), length=length(P.h))
-    return Diag(γ)*SparseInterpolator(convert(Kernel{T}, P.ker),
-                              X,
-                              x) 
-                              #= 
-    FIXME: use Compat and Diag(γ)*SparseInterpolator(convert(Kernel{T}, P.ker),
-                              convert_eltype(T, X),
-                              convert_eltype(T, x))
-=#
-end
-
-@inline parameters(P::oneDimensionalPSF) = (getfield(P, :h))
-@inline shift(P::oneDimensionalPSF)=0.
-
-function getfwhm(P::oneDimensionalPSF, ρ::T,λ::T) where {T<:AbstractFloat}
-    # @error "Not implented yet"
-    return one(T) #FIXME: default value adjusted by mask_width
-end
-
-
 """
         SeriesExpansionPSF(x) -> h
        
@@ -289,19 +242,23 @@ end
 
 struct SeriesExpansionPSF{T<:AbstractFloat,
                           V<:AbstractArray{Float64,2},
+                          S<:AbstractRange{Float64},
                           K<:Kernel,
                           R<:Regularization} <: NonParametricPSF{3}
     h::V
+    x::S
     a::T
     ker::K
     R::R
 end
 
 function SeriesExpansionPSF(h::AbstractVector{AbstractArray{T,N}};
+                              x::AbstractRange{T},
                               a=0.,
                               ker::Kernel = CatmullRomSpline(T, Flat),
                               R::Regularization = tikhonov()) where {T<: AbstractFloat,N}
-        return SeriesExpansionPSF(h, a, ker, R)
+        @assert length(x) == size(h)[2]                      
+        return SeriesExpansionPSF(h,x, a, ker, R)
 end
 
 function (P::SeriesExpansionPSF)(ρ::AbstractArray{T,N},
@@ -310,15 +267,12 @@ function (P::SeriesExpansionPSF)(ρ::AbstractArray{T,N},
     order=size(P.h)[2]
     γ = λref ./ λ
     γ[λ .== 0] .= 0.
-    X = T.(γ .*ρ)
-    xmin = minimum(X)
-    xmax = maximum(X)
-    x = range(minimum(X), stop=maximum(X), length=size(P.h)[1])
-    return ChromaticSeriesExpansionsInterpolator(P.ker, ρ, λ, x, order=order, a=P.a)
+    return ChromaticSeriesExpansionsInterpolator(P.ker, ρ, λ, P.x, order=order, λref=λref, a=P.a)
 end
 
 @inline parameters(P::SeriesExpansionPSF) = (getfield(P, :h))
 @inline shift(P::SeriesExpansionPSF)=getfield(P,:a)
+@inline coord(P::SeriesExpansionPSF)=get_field(P,:x)
 
 function getfwhm(P::SeriesExpansionPSF, ρ::T,λ::T) where {T<:AbstractFloat}
     # @error "Not implented yet"

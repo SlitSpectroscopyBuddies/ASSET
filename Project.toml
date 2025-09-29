@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [deps]
 AMORS = "77d29c75-3847-48dd-b74a-66585bbee1d5"
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 InterpolationKernels = "16730964-a2ec-11e9-36fa-47a4f82bfac6"
 InverseProblem = "64b5b672-16b6-410f-923c-75370071a2c8"
 LazyAlgebra = "aeaa251e-9d76-11e9-311b-83636bf44738"
@@ -18,4 +19,6 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
 AMORS = "0.3.0"
+DelimitedFiles = "1.9.1"
+InverseProblem = "0.1.0"
 Test = "1.11.0"

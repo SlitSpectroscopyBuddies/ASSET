@@ -103,9 +103,10 @@ abstract type NonParametricPSF{N} <: AbstractPSF{N} end
 """
 """
 struct ChromaticSeriesExpansionsInterpolator{T<:AbstractFloat,
-                                  Trows<:Union{NTuple{2,Int},NTuple{3,Int}},
+                                             N,
+                                  Trows<:NTuple{N,Int},#Union{NTuple{2,Int},NTuple{3,Int}},
                                   Tker<:Union{Kernel{T,2},Kernel{T,4}},
-                                  Tmap<:Union{AbstractArray{T,2},AbstractArray{T,3}},
+                                  Tmap<:AbstractArray{T},#Union{AbstractArray{T,2},AbstractArray{T,3}},
                                   Tx<:AbstractRange{T}} <: LinearMapping
     cols::NTuple{2,Int} 
     rows::Trows 
@@ -113,15 +114,17 @@ struct ChromaticSeriesExpansionsInterpolator{T<:AbstractFloat,
     X::Tmap
     Λ::Tmap
     x::Tx
+    λref::Real
     a::Real
 end
 
 function ChromaticSeriesExpansionsInterpolator{T}(ker::Kernel,
-                                X::Union{AbstractArray{<:Any,2},AbstractArray{<:Any,3}},
-                                Λ::Union{AbstractArray{<:Any,2},AbstractArray{<:Any,3}},
+                                X::AbstractArray{T,N},#Union{AbstractArray{<:Any,2},AbstractArray{<:Any,3}},
+                                Λ::AbstractArray{T,N},#Union{AbstractArray{<:Any,2},AbstractArray{<:Any,3}},
                                 x::AbstractRange;
                                 order=1,
-                                a=0.) where {T <: AbstractFloat}
+                                λref = maximum(Λ),
+                                a=0.) where {T <: AbstractFloat,N}
     @assert size(X) == size(Λ)
     ChromaticSeriesExpansionsInterpolator((length(x), order), 
                                size(X), 
@@ -129,6 +132,7 @@ function ChromaticSeriesExpansionsInterpolator{T}(ker::Kernel,
                                T.(X),
                                T.(Λ),
                                x,
+                               λref,
                                a)
 end
 function ChromaticSeriesExpansionsInterpolator(ker::Kernel,
@@ -136,9 +140,10 @@ function ChromaticSeriesExpansionsInterpolator(ker::Kernel,
                                 Λ::AbstractArray{<:Any,N},
                                 x::AbstractRange;
                                 order=1,
+                                λref = maximum(Λ),
                                 a=0.) where{N}
     T=Float64
-    ChromaticSeriesExpansionsInterpolator{T}(ker, X, Λ, x; order=order, a=a)
+    ChromaticSeriesExpansionsInterpolator{T}(ker, X, Λ, x; order=order, λref=λref, a=a)
 end
 
 
@@ -146,11 +151,12 @@ function vcreate(::Type{LazyAlgebra.Direct}, A::ChromaticSeriesExpansionsInterpo
                  x::AbstractArray{T,2}, scratch::Bool = false) where {T <: AbstractFloat}
     @assert !Base.has_offset_axes(x)
     @assert size(x) == A.cols
-    Array{T,3}(undef, A.rows)
+    N=length(A.rows)
+    Array{T,N}(undef, A.rows)
 end
 
 function vcreate(::Type{LazyAlgebra.Adjoint}, A::ChromaticSeriesExpansionsInterpolator{T},
-                 x::AbstractArray{T,3}, scratch::Bool = false) where {T <: AbstractFloat}
+                 x::AbstractArray{T,N}, scratch::Bool = false) where {T <: AbstractFloat,N}
     @assert !Base.has_offset_axes(x)
     @assert size(x) == A.rows
     Array{T,2}(undef, A.cols)
@@ -163,7 +169,7 @@ function apply!(α::Real,
                 src::AbstractArray{T,2},
                 scratch::Bool,
                 β::Real,
-                dst::AbstractArray{T,3}) where {T<:AbstractFloat}
+                dst::AbstractArray{T,N}) where {T<:AbstractFloat,N}
     @assert size(src) == R.cols
     @assert size(dst) == R.rows
     #Direct!(dst,src,R.ker,R.X,R.Y, R.Λ, R.x, R.y, R.λ);
@@ -182,7 +188,7 @@ function apply!(α::Real,
     Xc = zeros(Int64,S)
     Xw = zeros(S)
     
-    λmax=maximum(R.Λ)    
+    λmax=R.λref   
     
     @inbounds for n=1:length(dst)
         iszero(R.Λ[n]) && continue
@@ -218,10 +224,10 @@ end
 function apply!(α::Real,
                 ::Type{LazyAlgebra.Adjoint},
                 R::ChromaticSeriesExpansionsInterpolator{T},
-                src::AbstractArray{T,3},
+                src::AbstractArray{T,N},
                 scratch::Bool,
                 β::Real,
-                dst::AbstractArray{T,2}) where {T<:AbstractFloat}
+                dst::AbstractArray{T,2}) where {T<:AbstractFloat,N}
     @assert size(src) == R.rows
     @assert size(dst) == R.cols
     
@@ -237,8 +243,8 @@ function apply!(α::Real,
     S=4 #FIXME get directly the size of the kernel support
     Xc = zeros(Int64,S)
     Xw = zeros(S)
-   
-    λmax= maximum(R.Λ)
+    
+    λmax= R.λref
     
     @inbounds for n=1:length(src)
         iszero(R.Λ[n]) && continue

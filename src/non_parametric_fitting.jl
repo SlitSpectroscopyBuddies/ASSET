@@ -171,7 +171,7 @@ function fit_psf_shift(psf::NonParametricPSF,
     d, w, ρ_map, λ_map = D.d, D.w, D.ρ_map, D.λ_map
     H_p = zeros(T, size(d))
     function likelihood!(a)
-        psf_p = typeof(psf)(psf[:],a, psf.ker,psf.R)
+        psf_p = typeof(psf)(psf[:],psf.x,a, psf.ker,psf.R)
         psf_map!(H_p, psf_p, ρ_map, λ_map)
         L = Lkl(Diag(H_p) * F, d, w)
         return L(z)
@@ -179,6 +179,6 @@ function fit_psf_shift(psf::NonParametricPSF,
     shift_param = shift(psf)  
     shift_param=fmin(likelihood!,bnd_min,bnd_max;kwds...)[1]
 
-    return typeof(psf)(psf[:],shift_param, psf.ker,psf.R)
+    return typeof(psf)(psf[:],psf.x,shift_param, psf.ker,psf.R)
 end
 
