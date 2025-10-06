@@ -26,7 +26,7 @@ affiliations:
   - index: 3
     name: Université Lyon 1, ENS de Lyon, CNRS, CRAL, UMR5574, 69220 Saint-Genis-Laval, France
 
-bibliography: biblio.bib
+bibliography: paper.bib
 ---
 
 
