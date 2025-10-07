@@ -55,14 +55,15 @@ parameters and center of the PSF.
  - `extract_kwds` : (`(verb=true,)` by default) where other keywords can be
    given which are forwarded to the `object_step` method. 
 
-See also [`AbstractBkg`](@ref), [`AbstractPSF`](@ref)
-
+# See also
+- [`AbstractBkg`](@ref)
+- [`AbstractPSF`](@ref)
 """
 function extract_spectrum!(z::AbstractVector{T},
     F::SparseInterpolator{T},
     psf::AbstractPSF,
     D::CalibratedData{T},
-    Reg::Regularization,#FIXME: multiple regul for multiple params?
+    Reg::Regularization,#TODO: multiple regul for multiple params?
     Bkg::Union{<:AbstractBkg,UndefInitializer} = undef;
     auto_calib::Val = Val(true),
     mask_width::Real = 3.0,
@@ -142,8 +143,9 @@ zeros, while the rest are at unitary level.
 To do so, the user needs to make sure that the `ρ_map` has its origin centered
 on the object of interest.
 
-See also [`AbstractPSF`](@ref), [`get_fwhm`](@ref)
-
+# See also
+- [`AbstractPSF`](@ref)
+- [`get_fwhm`](@ref)
 """
 function mask_object(ρ_map::AbstractArray{T,N},
                      λ_map::AbstractArray{T,N},
@@ -174,8 +176,8 @@ check if the `Regularization` `R` can be used in a direct inversion framework
 before calling the solve function (either `solve_analytic` or `solve_vmlmb`).
 The keywords `kwds` are forwarded to the method that solves the problem.
 
-See also [`InverseProblem.Regul`](@ref)
-
+# See also
+- [`InverseProblem.Regul`](@ref)
 """
 function fit_spectrum!(z::AbstractVector{T},
                        F::SparseInterpolator{T},
@@ -211,8 +213,8 @@ spectrum of the object `z` and the `SparseInterpolator` `F`.
    estimate the parameters of the PSF.
  - Other keywords can be given which are forwarded to the Bobyqa nethod.
 
-See also [`OptimPackNextGen.Powell.Bobyqa`](@ref)
-
+# See also
+- [`OptimPackNextGen.Powell.Bobyqa`](@ref)
 """
 function fit_psf_center!(psf_center::AbstractVector{T},
                          psf::AbstractPSF,
@@ -275,7 +277,8 @@ where `D` is a `CalibratedData`, `get_grad_op` is a method returning the
 operator of the gradient of the `Regularization` `Reg` and `z` is the estimator
 the user is looking for.
 
-See also [`InversePbm.get_grad_op`](@ref)
+# See also
+- [`InversePbm.get_grad_op`](@ref)
 """
 function solve_analytic(F::SparseInterpolator{T},
                          H::AbstractArray{T,N},
@@ -316,7 +319,8 @@ It is possible to indicate to the method `vmlmb` a positivity constraint for
 `z` by using the `nonnegative` keyword, as well as indicate more keywords to
 constrain the optimization.
 
-See also [`OptimPackNextGen.vmlbm!`](@ref)
+# See also
+- [`OptimPackNextGen.vmlbm!`](@ref)
 """
 function solve_vmlmb(z0::AbstractVector{T},
                       A::Mapping,
@@ -356,8 +360,9 @@ of the problem:
 `
 where `Bkg.b` and `regul(Bkg)` are not taken into account if `Bkg=undef`.
 
-See also [`AbstractBkg`](@ref), [`InverseProblem.Regul`](@ref)
-
+# See also
+- [`AbstractBkg`](@ref)
+- [`InverseProblem.Regul`](@ref)
 """
 function loss(D::CalibratedData{T},
               psf::AbstractPSF,

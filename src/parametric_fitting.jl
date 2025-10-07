@@ -13,8 +13,8 @@ store in the `AbstractArray` `map` the result of applying the psf function
 stored in the `ParametricPSF` `h`, to each pixel `i` of the spatial and spectral
 maps `ρ` and `λ`.
 
-See also [`psf_map`](@ref)
-
+# See also
+- [`psf_map`](@ref)
 """
 function psf_map!(map::AbstractArray{T,N},
                  h::ParametricPSF,
@@ -33,8 +33,8 @@ end
 
 yield the result of `psf_map!` and store it in a new `AbstractArray`.
 
-See also [`psf_map!`](@ref)
-
+# See also
+- [`psf_map!`](@ref)
 """
 function psf_map(h::ParametricPSF,
                  ρ::AbstractArray{T,N},
@@ -51,19 +51,17 @@ end
 
 
 """
-    fit_spectrum_and_psf!(z, psf, psf_center, F, D, Reg; kwds...)
+    fit_spectrum_and_psf!(z, psf, F, D, Reg; kwds...)
 
-yields the object spectrum `z`, the off-axis PSF `psf` and its center along the
-spectral axis `psf_center`, extracted from the `CalibratedData` `D` via an a
-posteriori likelihood minimization with regularization `Reg`. The model of the
-object is defined by `Diag(H)*F*z` where `H` is found via the `psf_center` and `psf`
-arguments, using the method `psf_map!`. The optimization problem is solved by
-the `vmlmb` method defined in the `OptimPackNextGen` package by calling the
-method `fit_spectrum!`.
+yields the object spectrum `z`, the off-axis PSF `psf`, extracted from the
+`CalibratedData` `D` via an a posteriori likelihood minimization with
+regularization `Reg`. The model of the object is defined by `Diag(H)*F*z` where
+`H` is found via the  `psf` arguments, using the method `psf_map!`. The
+optimization problem is solved by the `vmlmb` method defined in the
+`OptimPackNextGen` package by calling the method `fit_spectrum!`.
 
-An auto-calibration step can be done to better estimate the parameters, in`psf`, and
-center, `psf_center`, of the PSF. The Bobyqa method of Powell is used to
-estimate these quantities.
+An auto-calibration step can be done to better estimate the parameters of the
+PSF. The Bobyqa method of Powell is used to estimate these quantities.
 
 # Keywords
  - `auto_calib` : (`Val(true)` by default) precise if an auto-calibration step
@@ -84,9 +82,11 @@ estimate these quantities.
    criterion.
  - Other keywords can be given which are forwarded to the Bobyqa nethod.
 
-See also: [`OptimPackNextGen.vmlbm`](@ref),
-[`OptimPackNextGen.Powell.Bobyqa`](@ref), [`psf_map!`](@ref),
-[`fit_spectrum!`](@ref)
+# See also
+- [`OptimPackNextGen.vmlbm`](@ref)
+- [`OptimPackNextGen.Powell.Bobyqa`](@ref)
+- [`psf_map!`](@ref)
+- [`fit_spectrum!`](@ref)
 """
 function fit_spectrum_and_psf!(z::AbstractVector{T},
                       psf::ParametricPSF,
@@ -157,15 +157,15 @@ of the PSF is defined by the vector `psf_center`, while the spectrum of the
 object of interest can be retireve using the vector `z`, the `SparseInterpolator
 `F`, and the `CalibratedData` `D`.
 
-#Keywords
+# Keywords
  - `psf_params_bnds` : (a vector of zero-values Tuple by default) defines the
    boundaries of the parameters of the PSF. The user must specify them.
  - `rho_tol` : (`undef` by default) defines the size of the trust-region used to
    estimate the parameters of the PSF.
  - Other keywords can be given which are forwarded to the Bobyqa nethod.
 
-See also [`OptimPackNextGen.Powell.Bobyqa`](@ref)
-
+# See also
+- [`OptimPackNextGen.Powell.Bobyqa`](@ref)
 """
 function fit_psf_params(psf::ParametricPSF,
                         psf_center::AbstractVector{T},

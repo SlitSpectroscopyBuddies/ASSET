@@ -34,8 +34,8 @@ julia> fit_bkg!(B, D, true, kwds...)
 where `kwds` specifies all the keywords used by the optimization method to
 estimate the background.
 
-See also [`AbstractBkg`](@ref)
-
+# See also
+- [`AbstractBkg`](@ref)
 """
 struct BkgMdl{T,N,K} <: AbstractBkg where {T,N,K}
     b::AbstractArray{T,N}

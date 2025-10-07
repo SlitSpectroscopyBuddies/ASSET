@@ -14,19 +14,17 @@
 
 
 """
-        chromGaussianPSF(a) -> h
+    chromGaussianPSF(a) -> h
     
 Yields an AbstractPSF `h`, more precisely a gaussian chromatic 
-PSF parametred by `a`, such that the gaussian variance is  σ² = aλ².
+PSF parametrized by `a`, such that the gaussian variance is  σ² = aλ².
 
 Then: 
 
-        h(ρ,λ) 
+    h(ρ,λ) 
     
 gives the value of the gaussian chromatic PSF for:
-
  - `ρ`, a float giving the position in the slit (in pixels)
-    
  - `λ`, a float giving the wavelength (in μm)
     
 which is:
@@ -61,25 +59,20 @@ end
 
 
 """
-        chromwmwGaussianPSF(p) -> h
+    chromwmwGaussianPSF(p) -> h
     
 Yields an AbstractPSF `h`, more precisely a gaussian chromatic 
-PSF parametred by two variables given in a vector `p = [a,b]`:
-
+PSF parametrized by two variables given in a vector `p = [a,b]`:
  - `a` the chromatic scalling
-   
  - `b` the minimum width
-   
 such that the the variance of the PSF is  σ² = aλ² + b
 
 Then: 
 
-        h(ρ,λ) 
+    h(ρ,λ) 
     
 gives the value of the gaussian chromatic PSF for:
-
  - `ρ`, a float giving the position in the slit (in pixels)
-   
  - `λ`, a float giving the wavelength (in μm)
     
 which is:
@@ -116,25 +109,20 @@ end
 
 
 """
-        chromMoffatPSF(p) -> h
+    chromMoffatPSF(p) -> h
     
 Yields an AbstractPSF `h`, more precisely a centrosymetric Moffat chromatic 
-PSF parametred by two variables given in a vector `p=[a, β]`:
-
+PSF parametrized by two variables given in a vector `p=[a, β]`:
  - `a the chromatic scalling
-   
  - `β` the Moffat parameter
-   
 such that the the variance of the PSF is  σ² = aλ²
 
 Then: 
 
-        h(ρ,λ) 
+    h(ρ,λ) 
     
 gives the value of the centrosymetric Moffat chromatic PSF for:
-
  - `ρ`, a float giving the position in the slit (in pixels)
-   
  - `λ`, a float giving the wavelength (in μm)
     
 which is:
@@ -173,27 +161,22 @@ end
 
 
 """
-        chromwmwMoffatPSF(p) -> h
+    chromwmwMoffatPSF(p) -> h
     
 Yields an AbstractPSF `h`, more precisely a centrosymetric Moffat chromatic 
-PSF parametred by two variables given in a vector `p=[a, b, β]`:
-
+PSF parametrized by two variables given in a vector `p=[a, b, β]`:
  - `a` the chromatic scalling
-   
  - `b` the minimum width
- 
  - `β` the Moffat parameter
    
 such that the the variance of the PSF is  σ² = aλ² + b
 
 Then: 
 
-        h(ρ,λ) 
+    h(ρ,λ) 
     
 gives the value of the centrosymetric Moffat chromatic PSF for:
-
  - `ρ`, a float giving the position in the slit (in pixels)
-   
  - `λ`, a float giving the wavelength (in μm)
     
 which is:
@@ -236,8 +219,30 @@ end
 
 
 """
-        SeriesExpansionPSF(x) -> h
-       
+    SeriesExpansionPSF(x) -> h
+
+Yields an AbstractPSF `h`, more precisely a non-parametric PSF using a series
+expansion approach, parametrized by:
+ - `h`: a matrix containing the series expansion coefficients
+ - `x`: a range containing the wavelengths at which the series expansion
+   coefficients are defined
+ - `a`: a float giving the chromatic scaling (default is 0, i.e., no scaling)
+ - `ker`: an interpolation kernel (default is CatmullRomSpline with Flat boundary
+   conditions)
+ - `R`: a regularization (default is Tikhonov regularization)
+
+Then: 
+
+    h(ρ,λ) 
+    
+gives the value of the chromatic series expansion PSF for:
+ - `ρ`, a float giving the position in the slit (in pixels)
+ - `λ`, a float giving the wavelength (in μm)
+    
+ which is given by the `ChromaticSeriesExpansionsInterpolator` structure.
+
+# See also
+- [`ChromaticSeriesExpansionsInterpolator`](@ref)
 """ SeriesExpansionPSF
 
 struct SeriesExpansionPSF{T<:AbstractFloat,

@@ -10,11 +10,11 @@
     psf_map!(map, h, ρ, λ)
 
 store in the `AbstractArray` `map` the result of applying the psf function
-stored in the `NonParametricPSF` `h`, to each pixel `i` of the spatial and spectral
-maps `ρ` and `λ`.
+stored in the `NonParametricPSF` `h`, to each pixel `i` of the spatial and
+spectral maps `ρ` and `λ`.
 
-See also [`psf_map`](@ref)
-
+# See also
+- [`psf_map`](@ref)
 """
 function psf_map!(map::AbstractArray{T,N},
                   P::NonParametricPSF,
@@ -32,8 +32,8 @@ psf_map(h, ρ, λ)
 
 yield the result of `psf_map!` and store it in a new `AbstractArray`.
 
-See also [`psf_map!`](@ref)
-
+# See also
+- [`psf_map!`](@ref)
 """
 function psf_map(P::NonParametricPSF,
                  ρ::AbstractArray{T,N},
@@ -51,24 +51,23 @@ end
 
 
 """
-    fit_spectrum_and_psf!(z, psf, psf_center, F, D, Reg; kwds...)
+    fit_spectrum_and_psf!(z, psf, F, D, Reg; kwds...)
 
-yields the object spectrum `z`, the off-axis PSF `psf` and its center along the
-spectral axis `psf_center`, extracted from the `CalibratedData` `D` via an a
-posteriori likelihood minimization with regularization `Reg`. The model of the
-object is defined by `Diag(H)*F*z` where `H` is found via the `psf_center` and `psf`
-arguments, using the method `psf_map!`. The optimization problem is solved by
-the `vmlmb` method defined in the `OptimPackNextGen` package by calling the
-method `fit_spectrum!`.
+yields the object spectrum `z`, the off-axis PSF `psf`, extracted from the
+`CalibratedData` `D` via an a posteriori likelihood minimization with
+regularization `Reg`. The model of the object is defined by `Diag(H)*F*z` where
+`H` is found via the `psf` arguments, using the method `psf_map!`. The
+optimization problem is solved by the `vmlmb` method defined in the
+`OptimPackNextGen` package by calling the method `fit_spectrum!`.
 
-An auto-calibration step can be done to better estimate the parameters, in`psf`, and
-center, `psf_center`, of the PSF. The Bobyqa method of Powell is used to
-estimate these quantities.
+An auto-calibration step can be done to better estimate the parameters, in`psf`,
+and shift to apply to the center of the PSF. The Bobyqa method of Powell is used
+to estimate these quantities.
 
 # Keywords
  - `auto_calib` : (`Val(true)` by default) precise if an auto-calibration step
    of the PSF must be done after extracting the spectrum.
- - `psf_params_bnds` : (a vector of zero-values Tuple by default) defines the
+ - `psf_shift_bnds` : (a vector of zero-values Tuple by default) defines the
    boundaries of the parameters of the PSF. If `auto_calib=true`, the user must
    specify them.
  - `psf_center_bnds` : (a zero-valued integer by default) defines the
@@ -76,18 +75,32 @@ estimate these quantities.
    `auto_calib=true`, the user must specify them.
  - `max_iter` : (`1000` by default) defines the maximum number of iterations
    that can do the method (useful when `auto_calib=true`).
+ - `max_amors_iter` : (`10` by default) defines the maximum number of iterations
+   that can do the method `AMORS`.
+ - `amors_tol` : (`(1e-3,1e-3)` by default) defines the absolute and relative
+   tolerance between two consecutive iteration of the 'AMORS' loss function as a
+   stop criterion.
  - `loss_tol` : (`(0,1e-6)` by default) defines the absolute and relative
    tolerance between two consecutive iteration of the loss function as a stop
    criterion.
  - `z_tol` : (`(0,1e-6)` by default) defines the absolute and relative
    tolerance between two consecutive iteration of the estimate `z` as a stop
    criterion.
+ - `h_tol` : (`(0,1e-6)` by default) defines the absolute and relative 
+   tolerance between two consecutive iteration of the estimate of the PSF as a
+   stop criterion.
  - Other keywords can be given which are forwarded to the Bobyqa nethod.
 
-See also: [`OptimPackNextGen.vmlbm`](@ref),
-[`OptimPackNextGen.Powell.Bobyqa`](@ref), [`psf_map!`](@ref),
-[`fit_spectrum!`](@ref)
-#FIXME: update doc
+# Returns
+ - `z` : the estimated object spectrum.
+ - `psf` : the estimated off-axis PSF.
+
+# See also
+- [`OptimPackNextGen.vmlbm`](@ref)
+- [`OptimPackNextGen.Powell.Bobyqa`](@ref)
+- [`psf_map!`](@ref)
+- [`fit_spectrum!`](@ref)
+- [`AMORS`](@ref)
 """
 function fit_spectrum_and_psf!(z::AbstractVector{T},
     psf::NonParametricPSF,
@@ -153,6 +166,29 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     end
     return z, psf
 end
+
+
+
+
+"""
+  fit_psf_shift(psf, z, F, D; psf_shift_bnds = (0.,0.), kwds...)
+
+Fits the shift parameter of a non-parametric point spread function (PSF) by
+minimizing a likelihood function. 
+
+# Arguments
+- `psf`: The initial non-parametric PSF object.
+- `z`: The parameter vector for likelihood evaluation.
+- `F`: Sparse interpolator used in the likelihood calculation.
+- `D`: Calibrated data containing observed data, weights, and mapping
+  information.
+- `psf_shift_bnds`: Optional. Tuple specifying the lower and upper bounds for
+  the PSF shift parameter. Defaults to `(0., 0.)`.
+- `kwds...`: Additional keyword arguments passed to the optimizer.
+
+# Returns
+- `NonParametricPSF`: A new PSF object with the optimized shift parameter.
+"""
 
 function fit_psf_shift(psf::NonParametricPSF,
                        z::AbstractVector{T},
