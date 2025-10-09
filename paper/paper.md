@@ -45,8 +45,7 @@ field spectroscopy. Many instruments have been developed in that regard. For
 example, the SPHERE-IRDIS instrument [@Beuzit:2019], with its near-infrared long-slit
 spectroscopy mode [@Dohlen:2008] covering J, H, and K bands (1 to 2.5 microns) with a
 resolution R=350, allows for detection and characterization of high contrast
-Dwarfs companions [@Hinkley:2015; @Cheetham:2018; @Mesa:2020] at small angular separation (0.5''). The James Web
-Space Telescope (JWST) contains two instruments equipped with slit mode : the
+Dwarfs companions [@Hinkley:2015; @Cheetham:2018; @Mesa:2020] at small angular separation (0.5''). The James Web Space Telescope (JWST) contains two instruments equipped with slit mode : the
 NIRSpec (near-infrared) [@Jakobsen:2022; @Boker:2023], covering a wide range of 0.6 to 5.3 microns with low
 and high resolution, allowing for the characterization of faint solar system
 small bodies [@Denneulin:2023; @Thomas:2025; @GuilbertLepoutre:2025]  and faint stars or
@@ -119,25 +118,15 @@ The package provide several `ParametricPSF` and `NonParametricPSF` and the users
 
 # Usage Examples
 
-In these example, [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) is applied to the target GSPC P 330 E (Program ID 1538) observed with the JWST NIRSpec and MIRI instruments. Being a G dwarfs reference star, the reference spectrum is available [@Bohlin:2014] and is used to demonstrate the capacities of the package to provide a good extraction. For each example, the reference spectrum is resampled to the resolution of the extracted spectra.
+For these examples, we use the G dwarfs reference star GSPC P 330 E, for which the reference spectrum is available [@Bohlin:2014].  It was observed with the JWST instruments (Program ID 1538) . The NIRSpec's data were observed the 08/30/2022 with the S1600A1 Fixed Slit, with the PRISM grating, CLEAR filter, and a 5 dithers pattern. The MIRI's data were observed the 08/14/2022 with the MIRI LRS Slit, the P750L filter, and a 2 dithers pattern. For each example, we present [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) extracted spectra in comparison to the reference spectrum, resampled to the same resolution, and to the JWST pipeline extractions. We also present the fitted chromatic PSF models for different wavelength. 
 
-## JWST/NIRSpec Fixed Slit
+The \autoref{fig:NIRSpecSpectra} and \autoref{fig:NIRSpecPSFs} present the results for the NIRSpec Fixed Slit with `ParametricPSF` (chromatic Gaussian and Moffat with a minimum width) and a `NonParametricPSF` (with only 1 order). These data have the particularity that under 3.25$\mu$m the PSF is "blured" by the pixel, because it is larger than the PSF Full Width at Half Maximum. The `ParametricPSF` account for this blur, with the minimum width, and allow for a good extraction of the spectrum. The PSF profile fitted by the series expansion is more precise, however it does not yet account for the PSF blur which affect the slope of the spectra below 1 $\mu$m. The [`ASSET` ](https://github.com/SlitSpectroscopyBuddies/ASSET) spectral extraction is also more robust to outliers compared to the JWST pipeline extactions.
 
-These data were observed the 08/30/2022 with the S1600A1 Fixed Slit with the PRISM grating and CLEAR filter.  It is composed of 5 dithers.
-
-NIRSpec Fixed Slit data have the particularity that under 3.25$\mu$m the Full Width at Half Maximum (FWHM) of the PSF is smaller than the pixel width, thus chromatic PSF is "blured" by the pixel. Thus a chromatic PSF with a minimum width (corresponding to the `chromwmwPSF` particule) should be use. The \autoref{fig:NIRSpecSpectra} and \autoref{fig:NIRSpecPSFs} present the extracted spectrum and fitted PSF models for a gaussian PSF `chromwmwGaussianPSF`, a Moffat PSF `chromwmwMoffatPSF` and one order of the speckle expansion PSF `SeriesExpansionPSF`. The profile fitted by the `SeriesExpansionPSF` is more precise, however the slope of the spectra is affected by the fact that these PSF model does not account for the PSF blur, which is an ongoing work. The parametric PSF account for this blur and allow for a good extraction of the spectrum. [`ASSET` ](https://github.com/SlitSpectroscopyBuddies/ASSET) spectral extraction is also more robust to outliers compared to the JWST pipeline extactions.
+The \autoref{fig:MIRISpectra} and \autoref{fig:MIRIPSFs} present the results for MIRI LRS Slit with `ParametricPSF` (chromatic Gaussian and Moffat) and a `NonParametricPSF` (with 1 and 2 orders). In these data, the target is very faint hence a very bright background for the largest wavelength is present due to a longer integration time.  The PSF profile fitted by the  `NonParametricPSF`  are more precise, and the slop fits more accurately the reference spectrum above 5 $\mu$m. It is also more robust to the background brightness than the pipeline method, but it remains perfectible and there is an issue to be fixed below 5 $\mu$m.
 
 ![Comparison of the spectra extracted with the pipeline and ASSET for different PSF models \label{fig:NIRSpecSpectra} ](NIRSpec_P330E_spectral_comparison.png)
 
 ![Comparison of the shape of the auto-calibrated PSF for each ASSET extracted spectrea \label{fig:NIRSpecPSFs}](PSF_NIRSPEC_comparison.png)
-
-## JWST/MIRI Long Slit
-
-These data were observed the 08/14/2022 with the MIRI LRS Slit and the P750L filter. It is composed of 2 dithers. For the bandwidth covered with the MIRI LRS Slit, the target is very faint hence a very bright background for the largest wavelength is present due to a longer integration time.
-
-The \autoref{fig:MIRISpectra} and \autoref{fig:MIRIPSFs} present the extracted spectrum and fitted PSF models for a gaussian PSF `chromGaussianPSF`, a Moffat PSF `chromMoffatPSF`, and one and two orders of the speckle expansion PSF `SeriesExpansionPSF`. The profile fitted by the `SeriesExpansionPSF` is more precise, and the slop fits more accurately the reference spectrum around 5 $\mu$m. [`ASSET` ](https://github.com/SlitSpectroscopyBuddies/ASSET) is more robust to the background brightness than the pipeline method, but it remains perfectible.
-
-
 
 ![Comparison of the spectra extracted with the pipeline and ASSET for different PSF models \label{fig:MIRISpectra} ](MIRI_P330E_spectral_comparison.png)
 
@@ -149,7 +138,7 @@ The \autoref{fig:MIRISpectra} and \autoref{fig:MIRIPSFs} present the extracted s
 
 The [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) package can be used for many slit spectrograph, such as the SPHERE/IRDIS-LSS [@The:2023] used to characterize exoplanets. In this context, speckles are forming a high-contrasted structural background where the extraction of the planet's spectrum is achieved by the method's joint estimation of this background and the instrument's PSF. 
 
-The package is also currently used to extract spectra from JWST/NIRSpec and MIRI data [@Denneulin:2023; @GuilbertLepoutre:2025]. These two instruments involves a diverse set of slits, spectral resolution and positions on the detector, to observe a vast range of targets in terms of flux. The flexible and multi-frame approach of [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) is particularly interesting as it provides a single methodology to all these problems. 
+The package is also currently used to extract spectra from JWST/NIRSpec data [@Denneulin:2023; @GuilbertLepoutre:2025]. These two instruments involves a diverse set of slits, spectral resolution and positions on the detector, to observe a vast range of targets in terms of flux. The flexible and multi-frame approach of [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) is particularly interesting as it provides a single methodology to all these problems. 
 
 A particular interest in ongoing work is to correctly extract the spectrum of interest from the strong, but smooth, background present in some MIRI data. NIRSpec data also present some challenges at lower wavelength, where the instrumental PSF is blurred by the pixel integration. Finally, we aim to generalized such an approach to Integral Field Units data.
 
