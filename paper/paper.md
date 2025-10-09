@@ -39,20 +39,19 @@ easily defined by the user to adapt the estimation process to the instrument. Fi
 
 # Statement of need
 
-Spectroscopy serves as a powerful tool for characterizing the chemical components of celestial bodies, including stars, planets and smaller objects in our solar system. Slit spectroscopy is a common approach particularly valuable
+Spectroscopy is a powerful tool for characterizing the chemical components of celestial bodies, including stars, planets and smaller objects in our solar system. Slit spectroscopy is particularly valuable
 for faint object observations that may otherwise be challenging with integral
 field spectroscopy. Many instruments have been developed in that regard. For
 example, the SPHERE-IRDIS instrument [@Beuzit:2019], with its near-infrared long-slit
-spectroscopy mode [@Dohlen:2008] allows for detection and characterization of high contrast
-Dwarfs companions [@Hinkley:2015; @Cheetham:2018; @Mesa:2020] at small angular separation (0.5''). The James Web Space Telescope (JWST) contains two instruments equipped with slit mode : the
+spectroscopy mode [@Dohlen:2008], allows for detection and characterization of high contrast
+Dwarfs companions [@Hinkley:2015; @Cheetham:2018; @Mesa:2020] at small angular separation (0.5''). The James Web Space Telescope (JWST) contains two instruments equipped with slit mode: the
 NIRSpec (near-infrared) [@Jakobsen:2022; @Boker:2023],  allowing for the characterization of faint solar system
 small bodies [@Denneulin:2023; @Thomas:2025; @GuilbertLepoutre:2025]  and faint stars or
-galaxies,  and MIRI (mid-infrared) [@Wright:2023; @Kendrew:2015], allows for the characterization of solar system objects [@Muller:2023] or, combined with a coronograph, the detection and
+galaxies,  and MIRI (mid-infrared) [@Wright:2023; @Kendrew:2015], allowing for the characterization of solar system objects [@Muller:2023] or, combined with a coronograph, the detection and
 characterization of exoplanets [@Danielski:2018; @Henning:2024]. The future ELT instrument METIS should be
-equipped with a long-slit as well, allowing for the observation potential
-earth-like planet at very low separation [@Maire:2021].
+equipped with a long-slit as well, allowing for the observation potential earth-like planet at very low separation [@Maire:2021].
 
-Slit spectroscopy data consists of two dimensional maps of intensities with one spatial and one spectral axes. The most classical way to extract spectrum from these data, is to integrate the photons in a window of a given height, for each wavelength along the spectral axis. It is suboptimal as it accounts neither for the point spread function (PSF) profile and its chromatic magnification, nor for the noise statistics. Moreover, it can integrate background and artifacts (bad pixels, cosmic ray) that can pollute the spectral extraction. Account for all these issues is important to exploit the full potential of slit spectroscopy data. The Inverse problems framework offer such a possibility and is widely used in astrophysics [@Michalewicz:2023; @Berdeu:2024]. A slit spectral extraction method based on such an approach was developed in [@The:2023] and adapted in [@Denneulin:2023]. The goal of  [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) is to generalize this method to be fully adaptable to any slit spectroscopy instrument. It is fully implemented in Julia and yields an optimal auto-calibrated spectral extraction method based on the maximum a posteriori of likelihood. The data are model using different structures of parametric or non-parametric PSF, some are already implemented, which can be auto-calibrated via an alternate estimation scheme with the spectrum. With the same versatility, a custom background model can be
+Slit spectroscopy data consists of two dimensional maps of intensities with one spatial and one spectral axes. The most classical way to extract spectrum from these data, is to integrate the photons in a window of a given height, for each wavelength along the spectral axis. It is suboptimal as it accounts neither for the point spread function (PSF) profile and its chromatic magnification, nor for the noise statistics. Moreover, it can integrate background and artifacts (bad pixels, cosmic ray) that can pollute the spectral extraction. Accounting for all these issues is important to exploit the full potential of slit spectroscopy data. The Inverse problems framework offer such a possibility and is widely used in astrophysics [@Michalewicz:2023; @Berdeu:2024]. A slit spectral extraction method based on such an approach was developed in [@The:2023] and adapted in [@Denneulin:2023]. The goal of  [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) is to generalize this method to be fully adaptable to any slit spectroscopy instrument. It is fully implemented in Julia and yields an optimal auto-calibrated spectral extraction method (in the sense of the maximum of likelihood). It relies on a thorough modeling of the data using different customizable structures of parametric or non-parametric PSF, which can be auto-calibrated via an alternated algorithm during the spectrum extraction.  With the same versatility, a custom background model can be
 defined, fitted and subtracted in the estimation scheme. Finally, the package
 includes several regularization structures via the use of [`InverseProblem`](https://github.com/SJJThe/InverseProblem).  
 
@@ -70,7 +69,7 @@ Such maps must be stored in a `CalibratedData` structure using the constructor `
 
 The outputs of the `extract_spectrum!` method are the extracted spectrum $z$, sampled over a given regular wavelength grid $(\lambda_n)_{n \in 1:N}$, and the parameters $\theta$ of the fitted PSF model, stored in a its corresponding structure. The spatial distribution maps $X$, stored in the  `CalibratedData` structure,  and the background map $b$, stored in a `BkgMdl` structure, are auto-calibrated in place.  
 
-`ASSET` uses an inverse problem approach to extract the spectra by fitting a chromatic PSF model on the data.  
+The extracted spectra and the fitted chromatic PSF model are obtained by solving:  
 $$
 z,\theta \in \mathrm{arg min} \Big\{\sum_\ell\Vert d_\ell - (m_\ell(z,\theta) + b)\Vert_{W_{\ell}}^2 + \mu_z\mathcal{R}_z(z) + \mu_\theta\mathcal{R}_\theta(\theta) + \mu_b\mathcal{R}_b(b), \Big\}
 $$
@@ -123,7 +122,7 @@ The [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) package can be u
 
 The package is also currently used to extract spectra from JWST/NIRSpec data [@Denneulin:2023; @GuilbertLepoutre:2025]. These two instruments involves a diverse set of slits, spectral resolution and positions on the detector, to observe a vast range of targets in terms of flux. The flexible and multi-frame approach of [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) is particularly interesting as it provides a single methodology to all these problems. 
 
-A particular interest in ongoing work is to correctly extract the spectrum of interest from the strong, but smooth, background present in some MIRI data. NIRSpec data also present some challenges at lower wavelength, where the instrumental PSF is blurred by the pixel integration. Finally, we aim to generalized such an approach to Integral Field Units data.
+A particular interest in ongoing work is to correctly extract the spectrum of interest from the strong, but smooth, background present in some MIRI data, the blurred PSF in NIRSpec data and finally, to generalized such an approach to Integral Field Units data.
 
 # Dependencies
 
