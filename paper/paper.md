@@ -43,47 +43,30 @@ Spectroscopy serves as a powerful tool for characterizing the chemical component
 for faint object observations that may otherwise be challenging with integral
 field spectroscopy. Many instruments have been developed in that regard. For
 example, the SPHERE-IRDIS instrument [@Beuzit:2019], with its near-infrared long-slit
-spectroscopy mode [@Dohlen:2008] covering J, H, and K bands (1 to 2.5 microns) with a
-resolution R=350, allows for detection and characterization of high contrast
+spectroscopy mode [@Dohlen:2008] allows for detection and characterization of high contrast
 Dwarfs companions [@Hinkley:2015; @Cheetham:2018; @Mesa:2020] at small angular separation (0.5''). The James Web Space Telescope (JWST) contains two instruments equipped with slit mode : the
-NIRSpec (near-infrared) [@Jakobsen:2022; @Boker:2023], covering a wide range of 0.6 to 5.3 microns with low
-and high resolution, allowing for the characterization of faint solar system
+NIRSpec (near-infrared) [@Jakobsen:2022; @Boker:2023],  allowing for the characterization of faint solar system
 small bodies [@Denneulin:2023; @Thomas:2025; @GuilbertLepoutre:2025]  and faint stars or
-galaxies,  and MIRI (mid-infrared) [@Wright:2023; @Kendrew:2015], covering a wavelength range of 5 to 14
-microns, allows for the characterization of solar system objects
-[@Muller:2023] or, combined with a coronograph, the detection and
+galaxies,  and MIRI (mid-infrared) [@Wright:2023; @Kendrew:2015], allows for the characterization of solar system objects [@Muller:2023] or, combined with a coronograph, the detection and
 characterization of exoplanets [@Danielski:2018; @Henning:2024]. The future ELT instrument METIS should be
 equipped with a long-slit as well, allowing for the observation potential
 earth-like planet at very low separation [@Maire:2021].
 
-To exploit the full potential of slit spectroscopy data, it is essential to develop advanced spectral extraction methods. Precise calibration of the spatio-spectral coordinates on the detector is crucial to map the spatial and spectral dimensions accurately. Additionally, accounting for the instrument's point spread function (PSF) is necessary to ensure reliable extraction of spectral feature. In many cases, robust background subtraction is also essential to eliminate unwanted contributions from other sources in the field of view, scattered light and detector artifacts such as bad-pixels or cosmic rays.
-
-[`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) offers a flexible and thorough approach to address these challenges. This Julia package aims at
-providing a generic estimation framework based on the maximum a posteriori likelihood criterion. Different structures of parametric and non-parametric PSF are already proposed and can be refined via an alternate estimation scheme with
-the spectrum. With the same versatility, a custom background model can be
+Slit spectroscopy data consists of two dimensional maps of intensities with one spatial and one spectral axes. The most classical way to extract spectrum from these data, is to integrate the photons in a window of a given height, for each wavelength along the spectral axis. It is suboptimal as it accounts neither for the point spread function (PSF) profile and its chromatic magnification, nor for the noise statistics. Moreover, it can integrate background and artifacts (bad pixels, cosmic ray) that can pollute the spectral extraction. Account for all these issues is important to exploit the full potential of slit spectroscopy data. The Inverse problems framework offer such a possibility and is widely used in astrophysics [@Michalewicz:2023; @Berdeu:2024]. A slit spectral extraction method based on such an approach was developed in [@The:2023] and adapted in [@Denneulin:2023]. The goal of  [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) is to generalize this method to be fully adaptable to any slit spectroscopy instrument. It is fully implemented in Julia and yields an optimal auto-calibrated spectral extraction method based on the maximum a posteriori of likelihood. The data are model using different structures of parametric or non-parametric PSF, some are already implemented, which can be auto-calibrated via an alternate estimation scheme with the spectrum. With the same versatility, a custom background model can be
 defined, fitted and subtracted in the estimation scheme. Finally, the package
-includes several regularization structures via the use of [`InverseProblem`](https://github.com/SJJThe/InverseProblem).
-
-The [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) package is a full Julia implemented solution to extract spectrum from slit spectroscopy data. It yields an optimal extraction method (in the sense of the maximum of likelihood). It can be applied on any calibrated slit spectroscopy data regardless of the instrument used for the acquisition. 
-It is designed to generalize the methods presented in [@The:2023] and
-[@Denneulin:2023] and to be fully adaptable to any slit spectroscopy instrument.
+includes several regularization structures via the use of [`InverseProblem`](https://github.com/SJJThe/InverseProblem).  
 
 
 # Estimation Framework
 
-Slit spectroscopy acquisitions are two-dimensional data, consisting of one spatial and one spectral dimension. The most classical way to extract spectrum from spectroscopic data is the aperture extraction. In the context of slit data, it consists in integrating the photons, for each wavelength value in the spectral dimension, in a window of a given height. This method is suboptimal as it does not take into account the full width at half maximum (FWHM) of the instruments point spread function (PSF) or the noise statistic. Moreover, it can integrate artifacts (bad pixels, cosmic ray) that can pollute the spectral extraction.
+The method used in the [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) package requires the knowledge of the following maps as inputs: 
 
-Inverse problems framework is widely used in astrophysics to tackle these
-issues, such as @Michalewicz:2023 and @Berdeu:2024.
+- data maps $(d_\ell)_{\ell \in {1:L}}$, where $L$ is the amount of dithers/acquisitions/frames;
+- weights maps $w_\ell$, which each element can be computed as the inverse variance of the pixel, forming the matrix $W_{\ell}= \Sigma_{\ell}^{-2}$. We assume that a defective pixel or artifacts have an infinite variance, i.e. a zero entry in $W_{\ell}$;
+- spatial coordinate maps $X_\ell$ where $0$ should correspond to the center of the studied object;
+- spectral coordinate maps $\Lambda_\ell$.
 
-The method used in the [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) package was proposed by @The:2023 for the ESO/VLT SPHERE LSS, then adapted in @Denneulin:2023 for the JWST/NIRSpec FS. It requires the knowledge of the following maps as inputs: 
-
-- the L data maps $(d_\ell)_{\ell \in {1:L}}$
-- the L weights maps $w_\ell$, which each element can be computed as the inverse variance of the pixel, forming the matrix $W_{\ell}= \Sigma_{\ell}^{-2}$. We assume that a defective pixel or artifacts have an infinite variance, i.e. a zero entry in $W_{\ell}$.
-- the L spatial distribution maps $X_\ell$ where $0$ should correspond to the center of the studied object. #TODO: implement it, it should not be too long even if it seems a big deal
-- the L spectral distribution maps $\Lambda_\ell$.
-
-Such maps must be stored in a `CalibratedData` structure using the constructor `CalibratedData(d, w, ρ_map, λ_map)`.
+Such maps must be stored in a `CalibratedData` structure using the constructor `CalibratedData(d, w, X, Λ)`.
 
 The outputs of the `extract_spectrum!` method are the extracted spectrum $z$, sampled over a given regular wavelength grid $(\lambda_n)_{n \in 1:N}$, and the parameters $\theta$ of the fitted PSF model, stored in a its corresponding structure. The spatial distribution maps $X$, stored in the  `CalibratedData` structure,  and the background map $b$, stored in a `BkgMdl` structure, are auto-calibrated in place.  
 
@@ -120,7 +103,7 @@ The package provide several `ParametricPSF` and `NonParametricPSF` and the users
 
 For these examples, we use the G dwarfs reference star GSPC P 330 E, for which the reference spectrum is available [@Bohlin:2014].  It was observed with the JWST instruments (Program ID 1538) . The NIRSpec's data were observed the 08/30/2022 with the S1600A1 Fixed Slit, with the PRISM grating, CLEAR filter, and a 5 dithers pattern. The MIRI's data were observed the 08/14/2022 with the MIRI LRS Slit, the P750L filter, and a 2 dithers pattern. For each example, we present [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) extracted spectra in comparison to the reference spectrum, resampled to the same resolution, and to the JWST pipeline extractions. We also present the fitted chromatic PSF models for different wavelength. 
 
-The \autoref{fig:NIRSpecSpectra} and \autoref{fig:NIRSpecPSFs} present the results for the NIRSpec Fixed Slit with `ParametricPSF` (chromatic Gaussian and Moffat with a minimum width) and a `NonParametricPSF` (with only 1 order). These data have the particularity that under 3.25$\mu$m the PSF is "blured" by the pixel, because it is larger than the PSF Full Width at Half Maximum. The `ParametricPSF` account for this blur, with the minimum width, and allow for a good extraction of the spectrum. The PSF profile fitted by the series expansion is more precise, however it does not yet account for the PSF blur which affect the slope of the spectra below 1 $\mu$m. The [`ASSET` ](https://github.com/SlitSpectroscopyBuddies/ASSET) spectral extraction is also more robust to outliers compared to the JWST pipeline extactions.
+The \autoref{fig:NIRSpecSpectra} and \autoref{fig:NIRSpecPSFs} present the results for the NIRSpec Fixed Slit with `ParametricPSF` (chromatic Gaussian and Moffat with a minimum width) and a `NonParametricPSF` (with only 1 order). These data have the particularity that under 3.25$\mu$m the PSF is "blured" by the pixel, because it is larger than the PSF FWHM. The `ParametricPSF` account for this blur, with the minimum width, and allow for a good extraction of the spectrum. The PSF profile fitted by the series expansion is more precise, however it does not yet account for the PSF blur which affect the slope of the spectra below 1 $\mu$m. The [`ASSET` ](https://github.com/SlitSpectroscopyBuddies/ASSET) spectral extraction is also more robust to outliers compared to the JWST pipeline extactions.
 
 The \autoref{fig:MIRISpectra} and \autoref{fig:MIRIPSFs} present the results for MIRI LRS Slit with `ParametricPSF` (chromatic Gaussian and Moffat) and a `NonParametricPSF` (with 1 and 2 orders). In these data, the target is very faint hence a very bright background for the largest wavelength is present due to a longer integration time.  The PSF profile fitted by the  `NonParametricPSF`  are more precise, and the slop fits more accurately the reference spectrum above 5 $\mu$m. It is also more robust to the background brightness than the pipeline method, but it remains perfectible and there is an issue to be fixed below 5 $\mu$m.
 
