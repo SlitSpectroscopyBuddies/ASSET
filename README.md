@@ -4,6 +4,12 @@ This package aims at giving low-level general tools to the extraction of spectru
 
 ## Installation
 
+If you are running a fresh install of Julia, first install the general registry by running: 
+
+``````julia
+pkg> registry add general
+``````
+
 Many of the dependencies are registered in the `EmmtRegistry`. In the Julia package manager, simply run:
 
 ``````julia

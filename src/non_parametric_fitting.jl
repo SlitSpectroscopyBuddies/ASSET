@@ -189,7 +189,6 @@ minimizing a likelihood function.
 # Returns
 - `NonParametricPSF`: A new PSF object with the optimized shift parameter.
 """
-
 function fit_psf_shift(psf::NonParametricPSF,
                        z::AbstractVector{T},
                        F::SparseInterpolator{T},

@@ -15,26 +15,24 @@ module ASSET
 export 
     AbstractBkg,
     BkgMdl,
-    bkg_step!,
     CalibratedData,
     chromGaussianPSF,
     chromwmwGaussianPSF,
     ChromaticSeriesExpansionsInterpolator,
     extract_spectrum!,
+    fit_bkg!,
     fit_psf_center!,
-    fit_psf_params!,
-    fit_spectrum!,
+    fit_psf_params,
     fit_psf_shift,
+    fit_spectrum!,
+    fit_spectrum_and_psf!,
     loss,
     mask_object,
-    fit_spectrum_and_psf!,
-    oneDimensionalPSF,
-    ParametrizedBkgMdl,
     psf_map!,
     psf_map,
     SeriesExpansionPSF,
-    solve_analytic!,
-    solve_vmlmb!
+    solve_analytic,
+    solve_vmlmb
 
 import Base: +, -, axes, size, eltype, show, copy
 using AMORS
@@ -52,7 +50,6 @@ import PointSpreadFunctions:
 #using PowellMethods FIXME: Use PowellMethods instead of PRIMA, invest bound issues
 using PRIMA
 using SparseArrays
-
 
 
 include("types.jl")
