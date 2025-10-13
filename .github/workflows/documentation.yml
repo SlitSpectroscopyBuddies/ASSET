@@ -1,10 +1,9 @@
 name: Documentation
 on:
   push:
-    branches:
-      - master 
-    tags: '*'
-  pull_request:
+    paths:
+      - docs/**
+      - .github/workflows/documentation.yml
 
 jobs:
   build:
