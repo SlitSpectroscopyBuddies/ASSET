@@ -22,7 +22,9 @@ jobs:
       - name: Install dependencies
         shell: julia --color=yes --project=docs {0}
         run: |
-          using Pkg
+          using Pkg         
+          Pkg.Registry.add("General")
+          Pkg.Registry.add(RegistrySpec(url = "https://github.com/emmt/EmmtRegistry"))
           Pkg.develop(PackageSpec(path=pwd()))
           Pkg.instantiate()
       - name: Build and deploy
