@@ -1,6 +1,6 @@
-The ASSET package is licensed under the MIT "Expat" License:
+The ASSET package is licensed under the MIT License:
 
-> Copyright (c) 2023: SlitSpectroscopyBuddies organization <https://github.com/SlitSpectroscopyBuddies>
+> Copyright (c) 2023-2025: SlitSpectroscopyBuddies organization <https://github.com/SlitSpectroscopyBuddies>
 > Samuel Thé <https://github.com/SJJThe>
 > Laurence Denneulin <https://github.com/LaurenceDenneulin>
 >
