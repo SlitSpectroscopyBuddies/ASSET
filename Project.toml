@@ -1,7 +1,7 @@
 name = "ASSET"
 uuid = "7bdfb42d-0e43-493a-99cb-cbf0ac68819a"
 authors = ["Samuel Thé <the.samuel.ad@gmail.com>", "Laurence Denneulin <ldenneulin@montesquiou.info"]
-version = "0.1.0"
+version = "1.0.0"
 
 [deps]
 AMORS = "77d29c75-3847-48dd-b74a-66585bbee1d5"
@@ -20,5 +20,6 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 [compat]
 AMORS = "0.3.0"
 DelimitedFiles = "1.9.1"
+OptimPackNextGen = "0.4.3"
 InverseProblem = "0.1.0"
 Test = "1.11.0"
