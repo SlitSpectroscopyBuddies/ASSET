@@ -54,12 +54,20 @@ equipped with a long-slit as well, allowing for the observation potential earth-
 To exploit the full potential of slit spectroscopy data, it is important to account for any element involved in their acquisition process, such as: 
 
 - the shape of the chromatic point spread function (PSF) profile,
-- a thoroughly calibration of the spatial and spectral coordinates of each pixel in order to map correctly the PSF,
+- a thorough calibration of the spatial and spectral coordinates of each pixel in order to map correctly the PSF,
 - an accurate estimation of the noise statistics and of the artifacts (bad pixels, cosmic rays,...). 
 
 The Inverse problems framework is widely used in astrophysics [@Michalewicz:2023; @Berdeu:2024] and offer the possibility to account for all this elements. Based on such an approach, an optimal auto-calibrated spectral extraction method (in the sense of the maximum of likelihood) was developed in [@The:2023] and adapted in [@Denneulin:2023]. 
 
-The goal of  [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) is to generalize this method in an easy to use package, fully implemented in Julia, adaptable to any slit spectroscopy instrument. It relies on a thorough modeling of the data using different customizable structures of parametric or non-parametric PSF, which can be fitted via an alternated algorithm during the spectrum extraction. With the same versatility, a custom background model can be defined, fitted and subtracted in the estimation scheme. Finally, the package includes several regularization structures via the use of [`InverseProblem`](https://github.com/SJJThe/InverseProblem).  
+The goal of  [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) is to
+generalize this method in an easy to use package, fully implemented in Julia,
+adaptable to any slit spectroscopy instrument. It relies on a thorough modeling
+of the data using different customizable structures of parametric or
+non-parametric PSF, which can be fitted via an alternated algorithm during the
+spectrum extraction. With the same versatility, a custom background model can
+also be defined, fitted and subtracted in the estimation scheme. Finally, the package
+includes several regularization structures via the use of
+[`InverseProblem`](https://github.com/SJJThe/InverseProblem).  
 
 
 # Estimation Framework
@@ -105,7 +113,14 @@ For these examples, we use the G dwarfs reference star GSPC P 330 E observed wit
 
 The results for NIRSpec FS  (\autoref{fig:NIRSpecSpectra} and \autoref{fig:NIRSpecPSFs}) are obtained with `ParametricPSF`s (chromatic Gaussian and Moffat with a minimum width) and a `NonParametricPSF` (with only 1 order). These data have the particularity that under 3.25$\mu$m the PSF is "blured" by the pixel, because it is larger than the PSF FWHM. The `ParametricPSF` account for this blur, with the minimum width, and allow for a good extraction of the spectrum. The PSF profile fitted by the series expansion is more precise, however it does not yet account for the PSF blur which affect the slope of the spectra under 1 $\mu$m. The [`ASSET` ](https://github.com/SlitSpectroscopyBuddies/ASSET) spectral extraction is also more robust to outliers compared to the JWST pipeline extractions.
 
-The results for MIRI LRS (\autoref{fig:MIRISpectra} and \autoref{fig:MIRIPSFs}) are obtained with `ParametricPSF`s (chromatic Gaussian and Moffat) and a `NonParametricPSF` (with 1 and 2 orders). For this wavelength range the target is very faint, hence a bright background for the largest wavelength due to a longer integration time.  The PSF profile fitted by the  `NonParametricPSF`  are more precise, and the slop fits more accurately the reference spectrum above 5 $\mu$m. It is also more robust to the background brightness than the pipeline method, but it remains perfectible. Moreover there is an issue to be fixed under 5 $\mu$m.
+The results for MIRI LRS (\autoref{fig:MIRISpectra} and \autoref{fig:MIRIPSFs})
+are obtained with `ParametricPSF`s (chromatic Gaussian and Moffat) and a
+`NonParametricPSF` (with 1 and 2 orders). For this wavelength range the target
+is very faint, hence a bright background for the largest wavelength due to a
+longer integration time.  The PSF profile fitted by the  `NonParametricPSF`  are
+more precise, and the slop fits more accurately the reference spectrum above 5
+$\mu$m. It is also more robust to the background brightness than the pipeline
+method, but it remains perfectible, especially under 5 $\mu$m.
 
 ![Comparison of the spectra extracted with the pipeline and ASSET for different PSF models \label{fig:NIRSpecSpectra} ](NIRSpec_P330E_spectral_comparison.png)
 
