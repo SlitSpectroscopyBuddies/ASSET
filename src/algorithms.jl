@@ -249,7 +249,11 @@ function fit_psf_center!(psf_center::AbstractVector{T},
     ρ_map_c = zeros(T, size(d))
     H_c = zeros(T, size(d))
     function likelihood!(c)
+        if length(psf_center) > 1
         ρ_map_c = ρ_map .- reshape(c, 1, 1, length(psf_center))
+        else
+        ρ_map_c = ρ_map .- c
+        end
         psf_map!(H_c, psf, ρ_map_c, λ_map)
         L = Lkl(Diag(H_c) * F, d, w)
         return L(z)

@@ -109,6 +109,7 @@ function fit_spectrum_and_psf!(z::AbstractVector{T},
     loss_last = loss(CalibratedData(D.d, D.w, D.ρ_map, D.λ_map), psf, F, z, Reg)
     axs_D = size(D.ρ_map)
     psf_center = ( length(axs_D) == 3 ? zeros(axs_D[3]) : zeros(1) )
+    display(psf_center)
     psf_center_bnds = [(-psf_center_bnd, psf_center_bnd) for k=1:length(psf_center)]
             
     while true
@@ -198,7 +199,11 @@ function fit_psf_params(psf::ParametricPSF,
 
     # define the likelihood to be minimized
     d, w, ρ_map, λ_map = D.d, D.w, D.ρ_map, D.λ_map
-    ρ_map_centered = ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
+    if length(psf_center) > 1
+        ρ_map_centered = ρ_map .- reshape(psf_center, 1, 1, length(psf_center))
+    else
+        ρ_map_centered = ρ_map .- psf_center
+    end
     H_p = zeros(T, size(d))
     function likelihood!(p)
         psf_p = typeof(psf)(p)
