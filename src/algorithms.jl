@@ -7,7 +7,7 @@
 
 
 """
-    extract_spectrum!(z, F, psf, D, Reg [, Bkg]; kwds...)
+    extract_spectrum!(z, F, psf_center, psf, D, Reg [, Bkg]; kwds...)
 
 estimates the spectrum of an object observed with long-slit spectroscopy,
 when the data can be corrupted by a background component and noise. The direct model
@@ -57,7 +57,7 @@ parameters and center of the PSF.
 
 # See also
 - [`AbstractBkg`](@ref)
-- [`PointSpreadFunctions.AbstractPSF`]
+- [`AbstractPSF`](@ref)
 """
 function extract_spectrum!(z::AbstractVector{T},
     F::SparseInterpolator{T},
@@ -144,8 +144,8 @@ To do so, the user needs to make sure that the `ρ_map` has its origin centered
 on the object of interest.
 
 # See also
-- [`PointSpreadFunctions.AbstractPSF`]
-- [`PointSpreadFunctions.get_fwhm`]
+- [`AbstractPSF`](@ref)
+- [`get_fwhm`](@ref)
 """
 function mask_object(ρ_map::AbstractArray{T,N},
                      λ_map::AbstractArray{T,N},
@@ -177,7 +177,7 @@ before calling the solve function (either `solve_analytic` or `solve_vmlmb`).
 The keywords `kwds` are forwarded to the method that solves the problem.
 
 # See also
-- [`InverseProblem.Regul`]
+- [`InverseProblem.Regul`](@ref)
 """
 function fit_spectrum!(z::AbstractVector{T},
                        F::SparseInterpolator{T},
@@ -214,7 +214,7 @@ spectrum of the object `z` and the `SparseInterpolator` `F`.
  - Other keywords can be given which are forwarded to the Bobyqa nethod.
 
 # See also
-- [`OptimPackNextGen.Powell.Bobyqa`]
+- [`OptimPackNextGen.Powell.Bobyqa`](@ref)
 """
 function fit_psf_center!(psf_center::AbstractVector{T},
                          psf::AbstractPSF,
@@ -282,7 +282,7 @@ operator of the gradient of the `Regularization` `Reg` and `z` is the estimator
 the user is looking for.
 
 # See also
-- [`InversePbm.get_grad_op`]
+- [`InversePbm.get_grad_op`](@ref)
 """
 function solve_analytic(F::SparseInterpolator{T},
                          H::AbstractArray{T,N},
@@ -324,7 +324,7 @@ It is possible to indicate to the method `vmlmb` a positivity constraint for
 constrain the optimization.
 
 # See also
-- [`OptimPackNextGen.vmlbm!`]
+- [`OptimPackNextGen.vmlbm!`](@ref)
 """
 function solve_vmlmb(z0::AbstractVector{T},
                       A::Mapping,
@@ -366,7 +366,7 @@ where `Bkg.b` and `regul(Bkg)` are not taken into account if `Bkg=undef`.
 
 # See also
 - [`AbstractBkg`](@ref)
-- [`InverseProblem.Regul`]
+- [`InverseProblem.Regul`](@ref)
 """
 function loss(D::CalibratedData{T},
               psf::AbstractPSF,
