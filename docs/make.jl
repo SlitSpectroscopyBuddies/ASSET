@@ -8,6 +8,6 @@ deploydocs(
 )
 
 
-#links = InterLinks(
-#    "PointSpreadFunctions" => "https://documenter.juliadocs.org/stable/objects.inv"
-#)
+links = InterLinks(
+    "PointSpreadFunctions" => "https://emmt.github.io/PointSpreadFunctions.jl/"
+)
