@@ -26,6 +26,7 @@ jobs:
           Pkg.Registry.add("General")
           Pkg.Registry.add(RegistrySpec(url = "https://github.com/emmt/EmmtRegistry"))
           Pkg.add(PackageSpec(url="https://github.com/SJJThe/InverseProblem"))
+          Pkg.add(PackageSpec(url="https://github.com/emmt/PointSpreadFunctions.jl"))
           Pkg.add("Documenter")
           Pkg.add("DocumenterInterLinks")
           Pkg.develop(PackageSpec(path=pwd()))
