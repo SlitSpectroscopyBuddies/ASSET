@@ -83,8 +83,8 @@ PSF. The Bobyqa method of Powell is used to estimate these quantities.
  - Other keywords can be given which are forwarded to the Bobyqa nethod.
 
 # See also
-- [`OptimPackNextGen.vmlbm`](@ref)
-- [`OptimPackNextGen.Powell.Bobyqa`](@ref)
+- [`OptimPackNextGen.vmlbm`]
+- [`OptimPackNextGen.Powell.Bobyqa`]
 - [`psf_map!`](@ref)
 - [`fit_spectrum!`](@ref)
 """
@@ -166,7 +166,7 @@ object of interest can be retireve using the vector `z`, the `SparseInterpolator
  - Other keywords can be given which are forwarded to the Bobyqa nethod.
 
 # See also
-- [`OptimPackNextGen.Powell.Bobyqa`](@ref)
+- [`OptimPackNextGen.Powell.Bobyqa`]
 """
 function fit_psf_params(psf::ParametricPSF,
                         psf_center::AbstractVector{T},

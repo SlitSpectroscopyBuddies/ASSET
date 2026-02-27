@@ -18,6 +18,8 @@ export
     CalibratedData,
     chromGaussianPSF,
     chromwmwGaussianPSF,
+    chromMoffatPSF,
+    chromwmwMoffatPSF,
     ChromaticSeriesExpansionsInterpolator,
     extract_spectrum!,
     fit_bkg!,

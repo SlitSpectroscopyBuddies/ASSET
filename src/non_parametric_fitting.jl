@@ -96,11 +96,11 @@ to estimate these quantities.
  - `psf` : the estimated off-axis PSF.
 
 # See also
-- [`OptimPackNextGen.vmlbm`](@ref)
-- [`OptimPackNextGen.Powell.Bobyqa`](@ref)
+- [`OptimPackNextGen.vmlbm`]
+- [`OptimPackNextGen.Powell.Bobyqa`]
 - [`psf_map!`](@ref)
 - [`fit_spectrum!`](@ref)
-- [`AMORS`](@ref)
+- [`AMORS`]
 """
 function fit_spectrum_and_psf!(z::AbstractVector{T},
     psf::NonParametricPSF,

@@ -1,25 +1,47 @@
 # ASSET Documentation
 ```@contents
-Pages = ["documentation.md","estimation.md"]
-Depth = 1
 ```
-## Some documentation
+## Types
 ```@docs
 AbstractBkg
-BkgMdl
 ParametricPSF
 NonParametricPSF
+BkgMdl
+CalibratedData
 ```
-## Other documentation
+## PSF models
+```@docs
+chromGaussianPSF
+chromwmwGaussianPSF
+chromMoffatPSF
+chromwmwMoffatPSF
+SeriesExpansionPSF
+ChromaticSeriesExpansionsInterpolator
+```
+
+
+## Fitting methods
 
 ```@docs
 extract_spectrum!
-ChromaticSeriesExpansionsInterpolator
-CalibratedData
+fit_spectrum_and_psf!
+fit_spectrum!
+fit_psf_center!
+fit_psf_params
+fit_psf_shift
+psf_map!
+psf_map
+loss
+solve_analytic
+solve_vmlmb
+mask_object
 ```
 - link to [`ASSET.AbstractBkg`](@ref)
 - link to [`ASSET.BkgMdl`](@ref)
-
+- link to [`ASSET.psf_map!`](@ref)
+- link to [`ASSET.psf_map`](@ref)
+- link to [`ASSET.fit_spectrum!`](@ref)
+- link to [`ASSET.ChromaticSeriesExpansionsInterpolator`](@ref)
 ```@index
 ```
 
