@@ -3,12 +3,16 @@
 Pages = ["documentation.md","estimation.md"]
 Depth = 1
 ```
-
+## Some documentation
 ```@docs
 AbstractBkg
 BkgMdl
 ParametricPSF
 NonParametricPSF
+```
+## Other documentation
+
+```@docs
 extract_spectrum!
 ChromaticSeriesExpansionsInterpolator
 CalibratedData

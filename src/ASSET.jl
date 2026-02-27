@@ -28,8 +28,10 @@ export
     fit_spectrum_and_psf!,
     loss,
     mask_object,
+    NonParametricPSF,
     psf_map!,
     psf_map,
+    ParametricPSF,
     SeriesExpansionPSF,
     solve_analytic,
     solve_vmlmb
