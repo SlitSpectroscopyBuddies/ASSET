@@ -1,11 +1,14 @@
 # ASSET Documentation
 ```@contents
 Pages = ["documentation.md","estimation.md"]
+Depth = 1
 ```
 
 ```@docs
 AbstractBkg
 BkgMdl
+ParametricPSF
+NonParametricPSF
 extract_spectrum!
 ChromaticSeriesExpansionsInterpolator
 CalibratedData

@@ -104,7 +104,7 @@ well as `parameters(::P)` yielding its parameters, `getfwhm(::P)` its fwhm and
 `AbstractPSF{N}`.
 
 # See Also
-- [`AbstractPSF`](@ref)
+- [`AbstractPSF`]
 """
 abstract type ParametricPSF{N} <: AbstractPSF{N} end
 
@@ -123,7 +123,7 @@ models for PSFs as well as `parameters(::P)` yielding its parameters,
 the detector.This type is a subtype of `AbstractPSF{N}`.
 
 # See Also
-- [`AbstractPSF`](@ref)
+- [`AbstractPSF`]
 """
 abstract type NonParametricPSF{N} <: AbstractPSF{N} end
 
