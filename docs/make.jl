@@ -9,5 +9,5 @@ deploydocs(
 
 
 links = InterLinks(
-    "PointSpreadFunctions" => "https://emmt.github.io/PointSpreadFunctions.jl/"
+    "PointSpreadFunctions" => "https://github.com/emmt/PointSpreadFunctions.jl/tree/gh-pages/dev"
 )
