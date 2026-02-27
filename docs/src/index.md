@@ -12,7 +12,6 @@ CalibratedData
 ```
 - link to [`ASSET.AbstractBkg`](@ref)
 - link to [`ASSET.BkgMdl`](@ref)
-- link to [`PointSpreadFunctions.AbstractPSF`](@ref)
 ```@index
 ```
 
