@@ -70,7 +70,7 @@ includes several regularization structures via the use of
 [`InverseProblem`](https://github.com/SJJThe/InverseProblem).  
 
 
-# Estimation Framework
+# Software design
 
 The method used in the [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) package requires the following maps as inputs: 
 
@@ -79,48 +79,17 @@ The method used in the [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSE
 - spatial coordinate maps $X_\ell$ where $0$ should correspond to the center of the studied object;
 - spectral coordinate maps $\Lambda_\ell$.
 
-The method outputs are the extracted spectrum $z$, sampled over a given regular wavelength grid $(\lambda_n)_{n \in 1:N}$, and the parameters $\theta$ of the fitted PSF model. They are obtained by solving:  
+The method outputs are the extracted spectrum $z$, sampled over a given regular wavelength grid $(\lambda_n)_{n \in 1:N}$, and the parameters $\theta$ of the fitted PSF model. The spatial distribution maps $X$ and the background map $b$ are auto-calibrated in the process.  The package provide several PSF models and the users can easily implement their own. We decided to dissociate two type of PSF depending of the amount of parameters, because it requires different optimization methods. The `ParametricPSF`  are functions parametrized by a few unknown variables $\theta_m$, *e.g.* a Gaussian function.  The `NonParametricPSF` is parametrized directly by some profile $(\theta_m)_{m \in  1:M}$, thus with high degrees of freedom , *e.g.* taking $o$ order of the speckles expansion model [@Devaney:2017] which is the interpolation of the profiles $\theta_o$ in a reference plane of the spatial coordinates $(x_m)_{m \in 1:M}$. For such a PSF, $\theta$ must be regularized. The hyperparameter is auto-calibrated in the method (see @The:2023 and @Denneulin:2023 for and references therein for more details).
 
-$$
-z,\theta \in \mathrm{arg min} \Big\{\sum_\ell\Vert d_\ell - (m_\ell(z,\theta) + b)\Vert_{W_{\ell}}^2 + \mu_z\mathcal{R}_z(z) + \mu_\theta\mathcal{R}_\theta(\theta) + \mu_b\mathcal{R}_b(b), \Big\}
-$$
-where $\mathcal{R}_z$, $\mathcal{R}_\theta$ and $\mathcal{R}_b$ are respectively the regularization of the extracted spectra, of the PSF parameters if required and of the background, with hyperparameters $\mu_z$, $\mu_\theta$ and $\mu_b$. The spatial distribution maps $X$ and the background map $b$ are auto-calibrated in the process.  The model of the data
-$$
-m_\ell(z,\theta) = \alpha_\ell Z(\Lambda_\ell,z) \odot H(\theta, X_\ell, \Lambda_\ell)
-$$
-is the Hadamard (element-wise) product of the spectrum interpolated in the camera plane
-$$
-Z(\Lambda,z)_{j,k}=\sum_n\phi\Big(\frac{\Lambda_{j,k}-\lambda_n}{\delta_\lambda}\Big)z_n
-$$
+# State of field
 
-with $\phi$ an interpolation kernel, and of the chromatic PSF $H$ (parametric or non-parametric). The package provide several `ParametricPSF` and `NonParametricPSF` and the users can easily implement their own. A `ParametricPSF`  $H$ is a function parametrized by a few unknown variables $\theta_m$, thus with low degrees of freedom, *e.g.* a Gaussian chromatic with a minimum width model:
-$$
-H(\theta, X_\ell, \Lambda_\ell)_{j,k} = \big(2 \pi(\theta_1 \Lambda_{j,k\ell}^2 + \theta_2)\big)^{-1}\exp\Big(-\frac{X_{j,k,\ell}^2}{2(\theta_1\Lambda_{j,k,\ell}^2+\theta_2)}\Big).
-$$
+Several spectral extraction pipelines exists but they are often dedicated to a specific instrument (vrai ça ? refs).  Moreover, the pipeline methods can be quite basic, leaving the development of more sophisticated methods to the user. For example, the JWST's pipeline proceed to the spectral extraction by summing the pixels for each wavelength after some pre-processing of the data. This methods allows to have an idea to the overall spectrum but is not suitable for the small and faint features. 
 
-It does not require any regularization. See @The:2023 and @Denneulin:2023 for more details. 
+Here, we compare [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) extracted spectra to the JWST pipeline extractions and to the reference spectrum [@Bohlin:2014], resampled to the same resolution, of the G dwarfs reference star GSPC P 330 E, observed with JWST instruments (Program ID 1538). NIRSpec's data were observed the 08/30/2022 with the S1600A1 Fixed Slit, PRISM grating, CLEAR filter, and a 5 dithers pattern. MIRI's data were observed the 08/14/2022 with the MIRI LRS Slit, P750L filter, and a 2 dithers pattern. We also present the fitted chromatic PSF models for different wavelength. 
 
-A `NonParametricPSF` is parametrized directly by some profile $(\theta_m)_{m \in  1:M}$, thus with high degrees of freedom , *e.g.* taking $o$ order of the speckles expansion model [@Devaney:2017] which is the interpolation of the profiles $\theta_o$ in a reference plane of the spatial coordinates $(x_m)_{m \in 1:M}$,:
-$$
-H(\theta, X_\ell, \Lambda_\ell)_{j,k} = \sum_o \gamma(\Lambda_\ell)^o \sum_m \phi\Big(\frac{\gamma(\Lambda_\ell)X_\ell - x_m}{\delta x}\Big)\theta_{m,o}(x_m).
-$$
+We used Gaussian and Moffat PSF models (of type `ParametricPSF`) and the series expensions PSF are (of type `NonParametricPSF`.) For NIRSpec (\autoref{fig:NIRSpecSpectra} and \autoref{fig:NIRSpecPSFs}), `ASSET` results are more robust to the outliers than the pipeline extractions for small wavelength. For MIRI LRS (\autoref{fig:MIRISpectra} and \autoref{fig:MIRIPSFs}), the slope of `ASSET` spectra is more accurate above 5 $\mu$m. It is also more robust to the background brightness than the pipeline method, but it remains perfectible, especially under 5 $\mu$m. The PSF profile fitted by the  `NonParametricPSF`  is also more precise.
 
-For such a PSF, $\theta$ must be regularized. The hyperparameter is auto-calibrated in the method (see @The:2023 for and references therein for more details). 
 
-# Usage Examples
-
-For these examples, we use the G dwarfs reference star GSPC P 330 E observed with JWST instruments (Program ID 1538). NIRSpec's data were observed the 08/30/2022 with the S1600A1 Fixed Slit, PRISM grating, CLEAR filter, and a 5 dithers pattern. MIRI's data were observed the 08/14/2022 with the MIRI LRS Slit, P750L filter, and a 2 dithers pattern. For each example, we present [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) extracted spectra, the reference spectrum [@Bohlin:2014], resampled to the same resolution, and the JWST pipeline extractions. We also present the fitted chromatic PSF models for different wavelength. 
-
-The results for NIRSpec FS  (\autoref{fig:NIRSpecSpectra} and \autoref{fig:NIRSpecPSFs}) are obtained with `ParametricPSF`s (chromatic Gaussian and Moffat with a minimum width) and a `NonParametricPSF` (with only 1 order). These data have the particularity that under 3.25$\mu$m the PSF is "blured" by the pixel, because it is larger than the PSF FWHM. The `ParametricPSF` account for this blur, with the minimum width, and allow for a good extraction of the spectrum. The PSF profile fitted by the series expansion is more precise, however it does not yet account for the PSF blur which affect the slope of the spectra under 1 $\mu$m. The [`ASSET` ](https://github.com/SlitSpectroscopyBuddies/ASSET) spectral extraction is also more robust to outliers compared to the JWST pipeline extractions.
-
-The results for MIRI LRS (\autoref{fig:MIRISpectra} and \autoref{fig:MIRIPSFs})
-are obtained with `ParametricPSF`s (chromatic Gaussian and Moffat) and a
-`NonParametricPSF` (with 1 and 2 orders). For this wavelength range the target
-is very faint, hence a bright background for the largest wavelength due to a
-longer integration time.  The PSF profile fitted by the  `NonParametricPSF`  are
-more precise, and the slop fits more accurately the reference spectrum above 5
-$\mu$m. It is also more robust to the background brightness than the pipeline
-method, but it remains perfectible, especially under 5 $\mu$m.
 
 ![Comparison of the spectra extracted with the pipeline and ASSET for different PSF models \label{fig:NIRSpecSpectra} ](NIRSpec_P330E_spectral_comparison.png)
 
@@ -130,17 +99,16 @@ method, but it remains perfectible, especially under 5 $\mu$m.
 
 ![Comparison of the shape of the auto-calibrated PSF for each ASSET extracted spectra \label{fig:MIRIPSFs}](PSF_MIRI_comparison.png)
 
+# Research impact statement
 
-
-# Research projects using the package 
-
-The [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) package can be used for many slit spectrograph data, such as the SPHERE/IRDIS-LSS [@The:2023], used to characterize exoplanets. In this context, speckles are forming a high-contrasted structural background where the extraction of the planet's spectrum is achieved by the method's joint estimation of this background and the instrument's PSF. The package is also currently used to extract spectra from JWST/NIRSpec data [@Denneulin:2023; @GuilbertLepoutre:2025]. This instrument involves a diverse set of slits, spectral resolution and positions on the detector, to observe a vast range of targets in terms of flux. The flexible and multi-frame approach of [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) is particularly interesting as it provides a single methodology to all these problems. 
+The [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) package can be used for many slit spectrograph data, such as the SPHERE/IRDIS-LSS [@The:2023], used to characterize exoplanets. In this context, speckles are forming a high-contrasted structural background where the extraction of the planet's spectrum is achieved by the method's joint estimation of this background and the instrument's PSF. The package is also currently used to extract spectra from JWST/NIRSpec data [@Denneulin:2023; @GuilbertLepoutre:2026, @Cryan:2026]. This instrument involves a diverse set of slits, spectral resolution and positions on the detector, to observe a vast range of targets in terms of flux. The flexible and multi-frame approach of [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSET) is particularly interesting as it provides a single methodology to all these problems. 
 
 A particular interest in ongoing work is to correctly extract the spectrum of interest from the strong, but smooth, background present in some MIRI data, the blurred PSF in NIRSpec data and finally, to generalized such an approach to Integral Field Units data.
 
-# Dependencies
+# AI usage disclosure
 
-[`PointSpreadFunctions`](https://github.com/emmt/PointSpreadFunctions.jl.git), [`InverseProblems`](https://github.com/SJJThe/InverseProblem.git), [`InterpolationKernels`](https://github.com/emmt/InterpolationKernels.jl.git), [`LazyAlgebra`](https://github.com/emmt/LazyAlgebra.jl.git), [`LinearInterpolators`](https://github.com/emmt/LinearInterpolators.jl.git), [`OptimPackNextGen`](https://github.com/emmt/OptimPackNextGen.jl.git), [`PowellMethods`](https://github.com/emmt/PowellMethods.jl.git), [`AMORS`](https://github.com/emmt/AMORS.jl.git) and [`SparseArrays`](https://github.com/JuliaSparse/SparseArrays.jl.git).
+No generative AI tools were used in the development of this software, the writing
+of this manuscript, or the preparation of supporting materials.
 
 # Acknowledgments
 
