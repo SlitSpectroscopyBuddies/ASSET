@@ -5,12 +5,14 @@ Pages = ["documentation.md","estimation.md"]
 
 ```@docs
 AbstractBkg
+BkgMdl
 extract_spectrum!
 ChromaticSeriesExpansionsInterpolator
 CalibratedData
 ```
 - link to [`ASSET.AbstractBkg`](@ref)
-
+- link to [`ASSET.BkgMdl`](@ref)
+- link to [`PointSpreadFunction.AbstractPSF`](@ref)
 ```@index
 ```
 

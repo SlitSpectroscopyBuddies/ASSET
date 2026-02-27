@@ -57,6 +57,7 @@ parameters and center of the PSF.
 
 # See also
 - [`AbstractBkg`](@ref)
+- [`AbstractPSF`](@ref)
 """
 function extract_spectrum!(z::AbstractVector{T},
     F::SparseInterpolator{T},
@@ -71,7 +72,6 @@ function extract_spectrum!(z::AbstractVector{T},
     z_tol::Tuple{Real,Real} = (0.0, 1e-6),
     iterate_memory::Integer = 3, #the last iteration to compare to avoid eternal loops
     extract_kwds::K = (verb=true,)) where {T,K<:NamedTuple}
-#- [`AbstractPSF`](@ref)
     
     @assert size(D.d) == LinearInterpolators.output_size(F)
     
