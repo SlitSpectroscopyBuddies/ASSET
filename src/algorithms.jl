@@ -57,7 +57,7 @@ parameters and center of the PSF.
 
 # See also
 - [`AbstractBkg`](@ref)
-- [`AbstractPSF`](@ref)
+- [`PointSpreadFunctions.AbstractPSF`](@ref)
 """
 function extract_spectrum!(z::AbstractVector{T},
     F::SparseInterpolator{T},
@@ -144,8 +144,8 @@ To do so, the user needs to make sure that the `ρ_map` has its origin centered
 on the object of interest.
 
 # See also
-- [`AbstractPSF`](@ref)
-- [`get_fwhm`](@ref)
+- [`PointSpreadFunctions.AbstractPSF`](@ref)
+- [`PointSpreadFunctions.get_fwhm`](@ref)
 """
 function mask_object(ρ_map::AbstractArray{T,N},
                      λ_map::AbstractArray{T,N},
