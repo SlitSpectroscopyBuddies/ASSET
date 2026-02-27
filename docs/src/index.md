@@ -1,9 +1,10 @@
 # ASSET Documentation
 ```@contents
-
+Pages = ["documentation.md","estimation.md"]
 ```
 
 ```@docs
+AbstractBkg
 extract_spectrum!
 ChromaticSeriesExpansionsInterpolator
 CalibratedData
