@@ -27,6 +27,7 @@ jobs:
           Pkg.Registry.add(RegistrySpec(url = "https://github.com/emmt/EmmtRegistry"))
           Pkg.add(PackageSpec(url="https://github.com/SJJThe/InverseProblem"))
           Pkg.add("Documenter")
+          Pkg.add("DocumenterInterLinks")
           Pkg.develop(PackageSpec(path=pwd()))
           Pkg.instantiate()
       - name: Build and deploy
