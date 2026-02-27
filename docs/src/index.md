@@ -9,7 +9,7 @@ extract_spectrum!
 ChromaticSeriesExpansionsInterpolator
 CalibratedData
 ```
-- link to [`AbstractBkg`](@ref)
+- link to [`ASSET.AbstractBkg`](@ref)
 
 ```@index
 ```

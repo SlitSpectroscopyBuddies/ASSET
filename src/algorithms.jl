@@ -7,7 +7,7 @@
 
 
 """
-    extract_spectrum!(z, F, psf_center, psf, D, Reg [, Bkg]; kwds...)
+    extract_spectrum!(z, F, psf, D, Reg [, Bkg]; kwds...)
 
 estimates the spectrum of an object observed with long-slit spectroscopy,
 when the data can be corrupted by a background component and noise. The direct model
@@ -57,7 +57,6 @@ parameters and center of the PSF.
 
 # See also
 - [`AbstractBkg`](@ref)
-- [`AbstractPSF`](@ref)
 """
 function extract_spectrum!(z::AbstractVector{T},
     F::SparseInterpolator{T},
@@ -72,6 +71,7 @@ function extract_spectrum!(z::AbstractVector{T},
     z_tol::Tuple{Real,Real} = (0.0, 1e-6),
     iterate_memory::Integer = 3, #the last iteration to compare to avoid eternal loops
     extract_kwds::K = (verb=true,)) where {T,K<:NamedTuple}
+#- [`AbstractPSF`](@ref)
     
     @assert size(D.d) == LinearInterpolators.output_size(F)
     
