@@ -81,7 +81,7 @@ The method used in the [`ASSET`](https://github.com/SlitSpectroscopyBuddies/ASSE
 
 The method outputs are the extracted spectrum $z$, sampled over a given regular wavelength grid $(\lambda_n)_{n \in 1:N}$, and the fitted PSF model. The spatial distribution maps $X$ and the background map $b$ are auto-calibrated in the process.  The package provide several PSF models and the users can easily implement their own. We decided to dissociate two type of PSF depending of the amount of parameters, because it requires different optimization methods. The `ParametricPSF`  are functions parametrized by a few unknown variables $\theta_m$, *e.g.* a Gaussian function.  The `NonParametricPSF` is parametrized directly by some profile $(\theta_m)_{m \in  1:M}$, thus with high degrees of freedom , *e.g.* taking $o$ order of the speckles expansion model [@Devaney:2017] which is the interpolation of the profiles $\theta_o$ in a reference plane of the spatial coordinates $(x_m)_{m \in 1:M}$. For such a PSF, $\theta$ is regularized. See @The:2023 and @Denneulin:2023 for and references therein for more details.
 
-# State of field
+# State of the field
 
 Several spectral extraction pipelines exists but they are often dedicated to a specific instrument and/or specific tasks (see references in @The:2023 and @Denneulin:2023).  Moreover, the pipeline methods are often basic windows extractions, leaving the development of more sophisticated methods to the user. For example, the JWST's pipeline proceed to the spectral extraction by summing the pixels for each wavelength after some pre-processing of the data. This methods allows to have an idea to the overall spectrum but is not suitable for the small and faint features. 
 
